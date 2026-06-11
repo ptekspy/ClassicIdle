@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ProfileStoreTypes = require(ReplicatedStorage.Packages.ProfileStore.Types)
 local ReplicaServerTypes = require(ReplicatedStorage.Packages.Replica.Server.Types)
+local WorkerTypes = require(ReplicatedStorage.Worker.Types)
 
 
 export type SessionState = "Loading" | "Loaded" | "LoadFailed"
@@ -12,10 +13,8 @@ export type PlayerData = {
 	Wood: number,
 	Stone: number,
 	Coal: number,
-	AutoChopperLevel: number,
-	AutoMinerLevel: number,
-	AutoProcessorLevel: number,
 	StorageLevel: number,
+	NPCs: { [string]: WorkerTypes.NPCData },
 }
 
 export type PlayerProfile = ProfileStoreTypes.Profile<PlayerData>

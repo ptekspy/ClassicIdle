@@ -12,6 +12,7 @@ local getClosestPoint = require(ReplicatedStorage.Interaction.getClosestPoint)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
 
 type InputMode = "MouseKeyboard" | "Gamepad" | "Touch"
+type InteractionTarget = Model
 
 local interactionEvent = RemoteManager.InteractionRequest :: RemoteEvent
 local player = Players.LocalPlayer
@@ -21,7 +22,7 @@ local plotSpawns = workspace:WaitForChild("PlotSpawns")
 local Local = {
 	FALLBACK_SCREEN_RADIUS = 220,
 	inputMode = "MouseKeyboard" :: InputMode,
-	focusedTarget = nil :: BasePart?,
+	focusedTarget = nil :: InteractionTarget?,
 	started = false,
 }
 
@@ -142,7 +143,7 @@ local function getInputMode(inputType: Enum.UserInputType): InputMode
 	return "MouseKeyboard"
 end
 
-local function isInRange(target: BasePart): boolean
+local function isInRange(target: InteractionTarget): boolean
 	local character = player.Character
 	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 	local maxDistance = target:GetAttribute(InteractionConfig.Attributes.MaxDistance)
@@ -155,13 +156,27 @@ local function isInRange(target: BasePart): boolean
 end
 
 local function isValidTarget(instance: Instance?): boolean
-	if not instance or not instance:IsA("BasePart") then
+	if not instance or not instance:IsA("Model") then
 		return false
 	end
 
 	return CollectionService:HasTag(instance, InteractionConfig.Tag)
 		and instance:GetAttribute(InteractionConfig.Attributes.OwnerUserId) == player.UserId
 		and isInRange(instance)
+end
+
+local function getInteractionTarget(instance: Instance?): InteractionTarget?
+	local current = instance
+
+	while current and current ~= workspace do
+		if isValidTarget(current) then
+			return current :: InteractionTarget
+		end
+
+		current = current.Parent
+	end
+
+	return nil
 end
 
 local function getRaycastParams(): RaycastParams
@@ -171,7 +186,7 @@ local function getRaycastParams(): RaycastParams
 	return params
 end
 
-local function raycastFromViewportPoint(viewportPoint: Vector2): BasePart?
+local function raycastFromViewportPoint(viewportPoint: Vector2): InteractionTarget?
 	local camera = workspace.CurrentCamera
 
 	if not camera then
@@ -181,27 +196,37 @@ local function raycastFromViewportPoint(viewportPoint: Vector2): BasePart?
 	local ray = camera:ViewportPointToRay(viewportPoint.X, viewportPoint.Y)
 	local result = workspace:Raycast(ray.Origin, ray.Direction * 500, getRaycastParams())
 
-	if result and isValidTarget(result.Instance) then
-		return result.Instance :: BasePart
+	if result then
+		return getInteractionTarget(result.Instance)
 	end
 
 	return nil
 end
 
-local function hasLineOfSight(target: BasePart): boolean
+local function hasLineOfSight(target: InteractionTarget): boolean
 	local camera = workspace.CurrentCamera
 
 	if not camera then
 		return false
 	end
 
-	local targetPoint = getClosestPoint(target, camera.CFrame.Position)
-	local result = workspace:Raycast(camera.CFrame.Position, (targetPoint - camera.CFrame.Position) * 1.01, getRaycastParams())
+	for _, descendant in target:GetDescendants() do
+		if not descendant:IsA("BasePart") then
+			continue
+		end
 
-	return result ~= nil and result.Instance == target
+		local targetPoint = getClosestPoint(descendant, camera.CFrame.Position)
+		local result = workspace:Raycast(camera.CFrame.Position, (targetPoint - camera.CFrame.Position) * 1.01, getRaycastParams())
+
+		if result and result.Instance:IsDescendantOf(target) then
+			return true
+		end
+	end
+
+	return false
 end
 
-local function getFallbackTarget(): BasePart?
+local function getFallbackTarget(): InteractionTarget?
 	local camera = workspace.CurrentCamera
 
 	if not camera then
@@ -209,16 +234,17 @@ local function getFallbackTarget(): BasePart?
 	end
 
 	local viewportCenter = camera.ViewportSize * 0.5
-	local bestTarget: BasePart?
+	local bestTarget: InteractionTarget?
 	local bestScore = math.huge
 
 	for _, instance in CollectionService:GetTagged(InteractionConfig.Tag) do
-		if not isValidTarget(instance) or not hasLineOfSight(instance :: BasePart) then
+		if not isValidTarget(instance) or not hasLineOfSight(instance :: InteractionTarget) then
 			continue
 		end
 
-		local target = instance :: BasePart
-		local screenPosition, isVisible = camera:WorldToViewportPoint(target.Position)
+		local target = instance :: InteractionTarget
+		local targetPosition = target:GetBoundingBox()
+		local screenPosition, isVisible = camera:WorldToViewportPoint(targetPosition.Position)
 
 		if not isVisible or screenPosition.Z <= 0 then
 			continue
@@ -230,7 +256,7 @@ local function getFallbackTarget(): BasePart?
 			continue
 		end
 
-		local worldDistance = (target.Position - camera.CFrame.Position).Magnitude
+		local worldDistance = (targetPosition.Position - camera.CFrame.Position).Magnitude
 		local score = screenDistance + worldDistance * 2
 
 		if score < bestScore then
@@ -242,7 +268,7 @@ local function getFallbackTarget(): BasePart?
 	return bestTarget
 end
 
-local function getTarget(): BasePart?
+local function getTarget(): InteractionTarget?
 	local camera = workspace.CurrentCamera
 
 	if not camera then
@@ -260,12 +286,26 @@ local function getTarget(): BasePart?
 	return target or getFallbackTarget()
 end
 
-local function activateFocusedTarget()
-	local target = Local.focusedTarget
-
+local function activateTarget(target: InteractionTarget?)
 	if target and isValidTarget(target) then
 		interactionEvent:FireServer(target)
 	end
+end
+
+local function activateFocusedTarget()
+	activateTarget(Local.focusedTarget)
+end
+
+local function activateMouseTarget()
+	local inset = GuiService:GetGuiInset()
+	local mousePosition = UserInputService:GetMouseLocation() - inset
+	local target = raycastFromViewportPoint(mousePosition)
+
+	if target then
+		Local.focusedTarget = target
+	end
+
+	activateTarget(target)
 end
 
 local function updatePrompt()
@@ -310,14 +350,17 @@ function InteractionController.Start()
 	end)
 
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			activateMouseTarget()
+			return
+		end
+
 		if gameProcessed then
 			return
 		end
 
 		if input.KeyCode == Enum.KeyCode.E
-			or input.KeyCode == Enum.KeyCode.ButtonX
-			or input.UserInputType == Enum.UserInputType.MouseButton1
-		then
+			or input.KeyCode == Enum.KeyCode.ButtonX then
 			activateFocusedTarget()
 		end
 	end)

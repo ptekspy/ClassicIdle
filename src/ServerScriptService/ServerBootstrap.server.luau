@@ -40,6 +40,7 @@ local function onPlayerRemoving(player: Player)
 end
 
 InteractionService.Start(WorldService.HandleInteraction)
+WorldService.Start()
 
 Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
@@ -47,7 +48,3 @@ Players.PlayerRemoving:Connect(onPlayerRemoving)
 for _, player in Players:GetPlayers() do
 	onPlayerAdded(player)
 end
-
-WorldService.StartAutoChoppers()
-WorldService.StartAutoMiners()
-WorldService.StartAutoProcessors()

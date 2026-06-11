@@ -7,10 +7,8 @@ local DEFAULT_DATA: Types.PlayerData = {
 	Wood = 0,
 	Stone = 0,
 	Coal = 0,
-	AutoChopperLevel = 0,
-	AutoMinerLevel = 0,
-	AutoProcessorLevel = 0,
 	StorageLevel = 1,
+	NPCs = {},
 }
 
 return DEFAULT_DATA

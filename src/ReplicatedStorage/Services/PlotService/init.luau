@@ -3,6 +3,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Maid = require(ReplicatedStorage.Packages.Maid)
+local PlotConfig = require(ReplicatedStorage.Plot.Config)
+local getPlotPart = require(ReplicatedStorage.Plot.getPart)
+local validatePlot = require(ReplicatedStorage.Plot.validate)
 
 local assets = ReplicatedStorage:WaitForChild("Assets")
 local plotTemplate = assets:WaitForChild("PlotTemplate")
@@ -12,6 +15,8 @@ local plotSpawns = workspace:WaitForChild("PlotSpawns")
 if not plotTemplate:IsA("Model") then
 	error("ReplicatedStorage.Assets.PlotTemplate must be a Model")
 end
+
+validatePlot(plotTemplate)
 
 if not plotSpawns:IsA("Folder") then
 	error("Workspace.PlotSpawns must be a Folder")
@@ -145,11 +150,7 @@ end
 
 function PlotService.SpawnCharacter(player: Player)
 	local plot = PlotService.Get(player)
-	local playerSpawn = plot:FindFirstChild("PlayerSpawn")
-
-	if not playerSpawn or not playerSpawn:IsA("BasePart") then
-		error(`Plot for {player.Name} must contain a PlayerSpawn BasePart`)
-	end
+	local playerSpawn = getPlotPart(plot, PlotConfig.Paths.PlayerSpawn)
 
 	local character = player.Character or player.CharacterAdded:Wait()
 

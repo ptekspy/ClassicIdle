@@ -1,32 +1,21 @@
 --!strict
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PlayerTypes = require(ReplicatedStorage.Services.DataService.Types)
+local WorkerConfig = require(ReplicatedStorage.Worker.Config)
+local WorkerTypes = require(ReplicatedStorage.Worker.Types)
 
 local Local = {
-    WOOD_SELL_PRICE = 1,
-    STONE_SELL_PRICE = 3,
-    COAL_SELL_PRICE = 10,
-    AUTO_CHOPPER_BASE_COST = 10,
-    AUTO_MINER_BASE_COST = 25,
-    AUTO_PROCESSOR_BASE_COST = 100,
-    BASE_STORAGE_CAPACITY = 25,
-    STORAGE_CAPACITY_PER_LEVEL = 25,
-    STORAGE_UPGRADE_BASE_COST = 50,
-    COAL_RECIPE_WOOD = 2,
-    COAL_RECIPE_STONE = 1,
-    COAL_RECIPE_OUTPUT = 1,
+	WOOD_SELL_PRICE = 1,
+	STONE_SELL_PRICE = 3,
+	COAL_SELL_PRICE = 10,
+	BASE_STORAGE_CAPACITY = 25,
+	STORAGE_CAPACITY_PER_LEVEL = 25,
+	STORAGE_UPGRADE_BASE_COST = 50,
 }
 
 local EconomyService = {}
-
-function EconomyService.GetAutoChopperCost(data: PlayerTypes.PlayerData): number
-	return Local.AUTO_CHOPPER_BASE_COST * math.max(1, data.AutoChopperLevel + 1)
-end
-
-function EconomyService.GetAutoMinerCost(data: PlayerTypes.PlayerData): number
-	return Local.AUTO_MINER_BASE_COST * math.max(1, data.AutoMinerLevel + 1)
-end
 
 function EconomyService.GetStorageUpgradeCost(data: PlayerTypes.PlayerData): number
 	return Local.STORAGE_UPGRADE_BASE_COST * data.StorageLevel
@@ -41,180 +30,168 @@ function EconomyService.GetUsedStorage(data: PlayerTypes.PlayerData): number
 end
 
 function EconomyService.GetRemainingStorage(data: PlayerTypes.PlayerData): number
-	local capacity = EconomyService.GetStorageCapacity(data)
-	local used = EconomyService.GetUsedStorage(data)
-
-	return math.max(0, capacity - used)
+	return math.max(0, EconomyService.GetStorageCapacity(data) - EconomyService.GetUsedStorage(data))
 end
 
 function EconomyService.GetAcceptedResourceAmount(data: PlayerTypes.PlayerData, requestedAmount: number): number
-	local remaining = EconomyService.GetRemainingStorage(data)
-
-	return math.clamp(requestedAmount, 0, remaining)
+	return math.clamp(requestedAmount, 0, EconomyService.GetRemainingStorage(data))
 end
 
 function EconomyService.IsStorageFull(data: PlayerTypes.PlayerData): boolean
 	return EconomyService.GetRemainingStorage(data) <= 0
 end
 
-function EconomyService.AddWood(data: PlayerTypes.PlayerData, amount: number): number
+function EconomyService.AddResource(data: PlayerTypes.PlayerData, resourceType: WorkerTypes.ResourceType, amount: number): number
 	local acceptedAmount = EconomyService.GetAcceptedResourceAmount(data, amount)
 
 	if acceptedAmount <= 0 then
 		return 0
 	end
 
-	data.Wood += acceptedAmount
+	if resourceType == "Wood" then
+		data.Wood += acceptedAmount
+	elseif resourceType == "Stone" then
+		data.Stone += acceptedAmount
+	else
+		data.Coal += acceptedAmount
+	end
+
 	return acceptedAmount
+end
+
+function EconomyService.RemoveResource(data: PlayerTypes.PlayerData, resourceType: WorkerTypes.ResourceType, amount: number): boolean
+	local available = if resourceType == "Wood" then data.Wood elseif resourceType == "Stone" then data.Stone else data.Coal
+
+	if amount < 0 or available < amount then
+		return false
+	end
+
+	if resourceType == "Wood" then
+		data.Wood -= amount
+	elseif resourceType == "Stone" then
+		data.Stone -= amount
+	else
+		data.Coal -= amount
+	end
+
+	return true
+end
+
+function EconomyService.AddWood(data: PlayerTypes.PlayerData, amount: number): number
+	return EconomyService.AddResource(data, "Wood", amount)
 end
 
 function EconomyService.AddStone(data: PlayerTypes.PlayerData, amount: number): number
-	local acceptedAmount = EconomyService.GetAcceptedResourceAmount(data, amount)
-
-	if acceptedAmount <= 0 then
-		return 0
-	end
-
-	data.Stone += acceptedAmount
-	return acceptedAmount
+	return EconomyService.AddResource(data, "Stone", amount)
 end
 
 function EconomyService.AddCoal(data: PlayerTypes.PlayerData, amount: number): number
-	local acceptedAmount = EconomyService.GetAcceptedResourceAmount(data, amount)
-
-	if acceptedAmount <= 0 then
-		return 0
-	end
-
-	data.Coal += acceptedAmount
-	return acceptedAmount
+	return EconomyService.AddResource(data, "Coal", amount)
 end
 
 function EconomyService.CanProcessCoal(data: PlayerTypes.PlayerData): boolean
-	return data.Wood >= Local.COAL_RECIPE_WOOD and data.Stone >= Local.COAL_RECIPE_STONE
+	return data.Wood >= WorkerConfig.CoalRecipeWood and data.Stone >= WorkerConfig.CoalRecipeStone
 end
 
-function EconomyService.ProcessCoal(data: PlayerTypes.PlayerData): boolean
+function EconomyService.TakeCoalRecipe(data: PlayerTypes.PlayerData): boolean
 	if not EconomyService.CanProcessCoal(data) then
 		return false
 	end
 
-	local acceptedAmount = EconomyService.GetAcceptedResourceAmount(data, Local.COAL_RECIPE_OUTPUT)
+	data.Wood -= WorkerConfig.CoalRecipeWood
+	data.Stone -= WorkerConfig.CoalRecipeStone
+	return true
+end
 
-	if acceptedAmount < Local.COAL_RECIPE_OUTPUT then
+function EconomyService.ProcessCoal(data: PlayerTypes.PlayerData): boolean
+	if not EconomyService.TakeCoalRecipe(data) then
 		return false
 	end
 
-	data.Wood -= Local.COAL_RECIPE_WOOD
-	data.Stone -= Local.COAL_RECIPE_STONE
-	data.Coal += Local.COAL_RECIPE_OUTPUT
-
+	data.Coal += 1
 	return true
 end
 
 function EconomyService.GetCoalRecipeText(): string
-	return `{Local.COAL_RECIPE_WOOD} Wood + {Local.COAL_RECIPE_STONE} Stone`
+	return `{WorkerConfig.CoalRecipeWood} Wood + {WorkerConfig.CoalRecipeStone} Stone`
 end
 
-function EconomyService.SellAllWood(data: PlayerTypes.PlayerData): number
-	local woodToSell = data.Wood
+function EconomyService.GetNPCCount(data: PlayerTypes.PlayerData, role: WorkerTypes.Role?): number
+	local count = 0
 
-	if woodToSell <= 0 then
-		return 0
+	for _, npc in data.NPCs do
+		if role == nil or npc.Role == role then
+			count += 1
+		end
 	end
 
-	local goldEarned = woodToSell * Local.WOOD_SELL_PRICE
-
-	data.Wood = 0
-	data.Gold += goldEarned
-
-	return goldEarned
+	return count
 end
 
-function EconomyService.SellAllStone(data: PlayerTypes.PlayerData): number
-	local stoneToSell = data.Stone
-
-	if stoneToSell <= 0 then
-		return 0
-	end
-
-	local goldEarned = stoneToSell * Local.STONE_SELL_PRICE
-
-	data.Stone = 0
-	data.Gold += goldEarned
-
-	return goldEarned
+function EconomyService.HasNPC(data: PlayerTypes.PlayerData, role: WorkerTypes.Role): boolean
+	return EconomyService.GetNPCCount(data, role) > 0
 end
 
-function EconomyService.SellAllCoal(data: PlayerTypes.PlayerData): number
-	local coalToSell = data.Coal
-
-	if coalToSell <= 0 then
-		return 0
-	end
-
-	local goldEarned = coalToSell * Local.COAL_SELL_PRICE
-
-	data.Coal = 0
-	data.Gold += goldEarned
-
-	return goldEarned
+function EconomyService.GetNPCPurchaseCost(data: PlayerTypes.PlayerData, role: WorkerTypes.Role): number
+	return WorkerConfig.Roles[role].BaseCost * (EconomyService.GetNPCCount(data, role) + 1)
 end
 
-function EconomyService.BuyAutoChopper(data: PlayerTypes.PlayerData): boolean
-	local cost = EconomyService.GetAutoChopperCost(data)
+function EconomyService.GetNPCUpgradeCost(npc: WorkerTypes.NPCData, upgradeType: WorkerTypes.UpgradeType): number
+	local level = if upgradeType == "Speed" then npc.SpeedLevel else npc.AmountLevel
+	return WorkerConfig.Roles[npc.Role].BaseCost * level
+end
 
-	if data.Gold < cost then
+function EconomyService.GetNPCSpeed(npc: WorkerTypes.NPCData): number
+	return 10 + ((npc.SpeedLevel - 1) * 2)
+end
+
+function EconomyService.GetNPCAmount(npc: WorkerTypes.NPCData): number
+	return math.max(1, npc.AmountLevel)
+end
+
+function EconomyService.TrySpendGold(data: PlayerTypes.PlayerData, amount: number): boolean
+	if amount < 0 or data.Gold < amount then
 		return false
 	end
 
-	data.Gold -= cost
-	data.AutoChopperLevel += 1
-
-	return true
-end
-
-function EconomyService.BuyAutoMiner(data: PlayerTypes.PlayerData): boolean
-	local cost = EconomyService.GetAutoMinerCost(data)
-
-	if data.Gold < cost then
-		return false
-	end
-
-	data.Gold -= cost
-	data.AutoMinerLevel += 1
-
+	data.Gold -= amount
 	return true
 end
 
 function EconomyService.BuyStorageUpgrade(data: PlayerTypes.PlayerData): boolean
 	local cost = EconomyService.GetStorageUpgradeCost(data)
 
-	if data.Gold < cost then
+	if not EconomyService.TrySpendGold(data, cost) then
 		return false
 	end
 
-	data.Gold -= cost
 	data.StorageLevel += 1
-
 	return true
 end
 
-function EconomyService.GetAutoProcessorCost(data: PlayerTypes.PlayerData): number
-	return Local.AUTO_PROCESSOR_BASE_COST * math.max(1, data.AutoProcessorLevel + 1)
+function EconomyService.GetTotalSellValue(data: PlayerTypes.PlayerData): number
+	return data.Wood * Local.WOOD_SELL_PRICE + data.Stone * Local.STONE_SELL_PRICE + data.Coal * Local.COAL_SELL_PRICE
 end
 
-function EconomyService.BuyAutoProcessor(data: PlayerTypes.PlayerData): boolean
-	local cost = EconomyService.GetAutoProcessorCost(data)
+function EconomyService.SellAllWood(data: PlayerTypes.PlayerData): number
+	local earned = data.Wood * Local.WOOD_SELL_PRICE
+	data.Wood = 0
+	data.Gold += earned
+	return earned
+end
 
-	if data.Gold < cost then
-		return false
-	end
+function EconomyService.SellAllStone(data: PlayerTypes.PlayerData): number
+	local earned = data.Stone * Local.STONE_SELL_PRICE
+	data.Stone = 0
+	data.Gold += earned
+	return earned
+end
 
-	data.Gold -= cost
-	data.AutoProcessorLevel += 1
-
-	return true
+function EconomyService.SellAllCoal(data: PlayerTypes.PlayerData): number
+	local earned = data.Coal * Local.COAL_SELL_PRICE
+	data.Coal = 0
+	data.Gold += earned
+	return earned
 end
 
 return EconomyService

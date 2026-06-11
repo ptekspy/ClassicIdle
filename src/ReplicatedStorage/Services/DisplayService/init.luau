@@ -4,7 +4,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
 local UnlockService = require(script.Parent.UnlockService)
-local getPart = require(ReplicatedStorage.Utils.Getters.getPart)
+local PlotConfig = require(ReplicatedStorage.Plot.Config)
+local getPlotBillboardGui = require(ReplicatedStorage.Plot.getBillboardGui)
+local getPlotPart = require(ReplicatedStorage.Plot.getPart)
+local getPlotTextLabel = require(ReplicatedStorage.Plot.getTextLabel)
 
 local Local = {}
 local DisplayService = {}
@@ -117,7 +120,7 @@ end
 
 function DisplayService.UpdateStorageDisplay(player: Player, plot: Model)
 	local data = DataService.Get(player)
-	local storageBin = getPart("StorageBin", plot)
+	local storageBin = getPlotPart(plot, PlotConfig.Paths.StorageDisplayAnchor)
 
 	local gui = Local.createOrGetBillboard(
 		storageBin,
@@ -138,65 +141,18 @@ end
 
 function DisplayService.UpdateMachineDisplays(player: Player, plot: Model)
 	local data = DataService.Get(player)
+	local purchasePad = getPlotPart(plot, PlotConfig.Paths.NPCPurchasePad)
+	local gui = Local.createOrGetBillboard(purchasePad, "NPCDisplay", UDim2.fromOffset(190, 75), Vector3.new(0, 3.5, 0))
+	local label = gui:FindFirstChild("Label")
 
-	local chopper = getPart("AutoChopperMachine", plot)
-	local miner = getPart("AutoMinerMachine", plot)
-
-	local chopperGui = Local.createOrGetBillboard(
-		chopper,
-		"MachineDisplay",
-		UDim2.fromOffset(180, 70),
-		Vector3.new(0, 3.5, 0)
-	)
-
-	local minerGui = Local.createOrGetBillboard(
-		miner,
-		"MachineDisplay",
-		UDim2.fromOffset(180, 70),
-		Vector3.new(0, 3.5, 0)
-	)
-
-	local chopperLabel = chopperGui:FindFirstChild("Label")
-	local minerLabel = minerGui:FindFirstChild("Label")
-
-	if chopperLabel and chopperLabel:IsA("TextLabel") then
-		if data.AutoChopperLevel <= 0 then
-			chopperLabel.Text = "Auto Chopper\nLocked"
-		else
-			chopperLabel.Text = `Auto Chopper Lv.{data.AutoChopperLevel}\n+{data.AutoChopperLevel} Wood / 3s`
-		end
-	end
-
-	if minerLabel and minerLabel:IsA("TextLabel") then
-		if data.AutoMinerLevel <= 0 then
-			minerLabel.Text = "Auto Miner\nLocked"
-		else
-			minerLabel.Text = `Auto Miner Lv.{data.AutoMinerLevel}\n+{data.AutoMinerLevel} Stone / 5s`
-		end
+	if label and label:IsA("TextLabel") then
+		label.Text = `Hire NPCs\nOwned: {EconomyService.GetNPCCount(data)}`
 	end
 end
 
 function DisplayService.UpdateUpgradeButtonDisplays(player: Player, plot: Model)
 	local data = DataService.Get(player)
-
-	local chopperButton = getPart("AutoChopperButton", plot)
-	local minerButton = getPart("AutoMinerButton", plot)
-	local storageButton = getPart("StorageUpgradeButton", plot)
-	local processorButton = getPart("AutoProcessorButton", plot)
-
-	local chopperGui = Local.createOrGetBillboard(
-		chopperButton,
-		"UpgradeDisplay",
-		UDim2.fromOffset(175, 75),
-		Vector3.new(0, 3.5, 0)
-	)
-
-	local minerGui = Local.createOrGetBillboard(
-		minerButton,
-		"UpgradeDisplay",
-		UDim2.fromOffset(175, 75),
-		Vector3.new(0, 3.5, 0)
-	)
+	local storageButton = getPlotPart(plot, PlotConfig.Paths.StorageUpgradeButton)
 
 	local storageGui = Local.createOrGetBillboard(
 		storageButton,
@@ -205,35 +161,7 @@ function DisplayService.UpdateUpgradeButtonDisplays(player: Player, plot: Model)
 		Vector3.new(0, 3.5, 0)
 	)
 
-	local processorGui = Local.createOrGetBillboard(
-		processorButton,
-		"UpgradeDisplay",
-		UDim2.fromOffset(175, 75),
-		Vector3.new(0, 3.5, 0)
-	)
-
-	local chopperLabel = chopperGui:FindFirstChild("Label")
-	local minerLabel = minerGui:FindFirstChild("Label")
 	local storageLabel = storageGui:FindFirstChild("Label")
-	local processorLabel = processorGui:FindFirstChild("Label")
-
-	if chopperLabel and chopperLabel:IsA("TextLabel") then
-		local cost = EconomyService.GetAutoChopperCost(data)
-
-		chopperLabel.Text =
-				`Upgrade Chopper\nLv.{data.AutoChopperLevel} → Lv.{data.AutoChopperLevel + 1}\nCost: {cost} Gold`
-	end
-
-	if minerLabel and minerLabel:IsA("TextLabel") then
-		if UnlockService.CanBuyAutoMiner(data) then
-			local cost = EconomyService.GetAutoMinerCost(data)
-
-			minerLabel.Text =
-					`Upgrade Miner\nLv.{data.AutoMinerLevel} → Lv.{data.AutoMinerLevel + 1}\nCost: {cost} Gold`
-		else
-			minerLabel.Text = "Auto Miner\nLocked\nBuy Chopper First"
-		end
-	end
 
 	if storageLabel and storageLabel:IsA("TextLabel") then
 		local cost = EconomyService.GetStorageUpgradeCost(data)
@@ -241,22 +169,11 @@ function DisplayService.UpdateUpgradeButtonDisplays(player: Player, plot: Model)
 
 		storageLabel.Text = `Upgrade Storage\nCapacity: {currentCapacity}\nCost: {cost} Gold`
 	end
-
-	if processorLabel and processorLabel:IsA("TextLabel") then
-		if UnlockService.CanBuyAutoProcessor(data) then
-			local cost = EconomyService.GetAutoProcessorCost(data)
-
-			processorLabel.Text =
-					`Upgrade Processor\nLv.{data.AutoProcessorLevel} → Lv.{data.AutoProcessorLevel + 1}\nCost: {cost} Gold`
-		else
-			processorLabel.Text = "Auto Processor\nLocked\nBuy Auto Miner First"
-		end
-	end
 end
 
 function DisplayService.UpdateProcessorDisplays(player: Player, plot: Model)
 	local data = DataService.Get(player)
-	local coalProcessor = getPart("CoalProcessor", plot)
+	local coalProcessor = getPlotPart(plot, PlotConfig.Paths.CoalProcessor)
 
 	local gui = Local.createOrGetBillboard(
 		coalProcessor,
@@ -271,9 +188,23 @@ function DisplayService.UpdateProcessorDisplays(player: Player, plot: Model)
 		if UnlockService.CanUseCoalProcessor(data) then
 			label.Text = `Coal Processor\n{EconomyService.GetCoalRecipeText()} → 1 Coal`
 		else
-			label.Text = "Coal Processor\nLocked\nBuy Auto Miner First"
+			label.Text = "Coal Processor\nLocked\nHire Stone NPC First"
 		end
 	end
+end
+
+function DisplayService.UpdateSellDisplay(player: Player, plot: Model)
+	local data = DataService.Get(player)
+	local totalSellValue = EconomyService.GetTotalSellValue(data)
+	local touchPad = getPlotPart(plot, PlotConfig.Paths.SellTouchPad)
+	local billboard = getPlotBillboardGui(plot, PlotConfig.Paths.SellBillboard)
+	local billboardLabel = getPlotTextLabel(plot, PlotConfig.Paths.SellBillboardLabel)
+	local screenLabel = getPlotTextLabel(plot, PlotConfig.Paths.SellScreenLabel)
+
+	billboard.Adornee = touchPad
+	billboardLabel.Text =
+		`<stroke color="rgb(0, 118, 0)" joins="miter" thickness="7" transparency="0.5">${totalSellValue}</stroke>`
+	screenLabel.Text = `${totalSellValue}`
 end
 
 function DisplayService.UpdateAll(player: Player, plot: Model)
@@ -282,6 +213,7 @@ function DisplayService.UpdateAll(player: Player, plot: Model)
 	DisplayService.UpdateMachineDisplays(player, plot)
 	DisplayService.UpdateUpgradeButtonDisplays(player, plot)
 	DisplayService.UpdateProcessorDisplays(player, plot)
+	DisplayService.UpdateSellDisplay(player, plot)
 end
 
 return DisplayService

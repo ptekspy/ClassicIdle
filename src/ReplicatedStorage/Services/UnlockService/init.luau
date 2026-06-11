@@ -1,37 +1,37 @@
 --!strict
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local EconomyService = require(ReplicatedStorage.Services.EconomyService)
 local PlayerTypes = require(ReplicatedStorage.Services.DataService.Types)
+local WorkerTypes = require(ReplicatedStorage.Worker.Types)
 
-local Local = {}
 local UnlockService = {}
 
 function UnlockService.CanUseManualTree(_data: PlayerTypes.PlayerData): boolean
 	return true
 end
 
-function UnlockService.CanBuyAutoChopper(_data: PlayerTypes.PlayerData): boolean
-	return true
-end
-
 function UnlockService.CanUseManualRock(data: PlayerTypes.PlayerData): boolean
-	return data.AutoChopperLevel >= 1
+	return EconomyService.HasNPC(data, "Wood")
 end
 
-function UnlockService.CanBuyAutoMiner(data: PlayerTypes.PlayerData): boolean
-	return data.AutoChopperLevel >= 1
+function UnlockService.CanUseCoalProcessor(data: PlayerTypes.PlayerData): boolean
+	return EconomyService.HasNPC(data, "Stone")
 end
 
 function UnlockService.CanBuyStorageUpgrade(_data: PlayerTypes.PlayerData): boolean
 	return true
 end
 
-function UnlockService.CanBuyAutoProcessor(data: PlayerTypes.PlayerData): boolean
-	return data.AutoMinerLevel >= 1
-end
-
-function UnlockService.CanUseCoalProcessor(data: PlayerTypes.PlayerData): boolean
-	return data.AutoMinerLevel >= 1
+function UnlockService.CanBuyNPCRole(data: PlayerTypes.PlayerData, role: WorkerTypes.Role): boolean
+	if role == "Wood" then
+		return true
+	elseif role == "Stone" then
+		return EconomyService.HasNPC(data, "Wood")
+	else
+		return EconomyService.HasNPC(data, "Stone")
+	end
 end
 
 return UnlockService

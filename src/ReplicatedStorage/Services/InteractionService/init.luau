@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local InteractionConfig = require(ReplicatedStorage.Interaction.Config)
 local getClosestPoint = require(ReplicatedStorage.Interaction.getClosestPoint)
+local getPlotModel = require(ReplicatedStorage.Plot.getModel)
+local getPlotPart = require(ReplicatedStorage.Plot.getPart)
 local PlotService = require(ReplicatedStorage.Services.PlotService)
 local RateLimit = require(ReplicatedStorage.Packages.RateLimit)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
@@ -18,25 +20,7 @@ local Local = {
 
 local InteractionService = {}
 
-local function hasLineOfSight(player: Player, target: BasePart): boolean
-	local character = player.Character
-	local originPart = character and (character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart"))
-
-	if not originPart or not originPart:IsA("BasePart") then
-		return false
-	end
-
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	raycastParams.FilterDescendantsInstances = { character, workspace:WaitForChild("PlotSpawns") }
-
-	local targetPoint = getClosestPoint(target, originPart.Position)
-	local result = workspace:Raycast(originPart.Position, (targetPoint - originPart.Position) * 1.01, raycastParams)
-
-	return result ~= nil and result.Instance == target
-end
-
-local function isValidRequest(player: Player, target: BasePart): (boolean, string?, Model?)
+local function isValidRequest(player: Player, target: Model): (boolean, string?, Model?)
 	if not target:IsDescendantOf(workspace) or not CollectionService:HasTag(target, InteractionConfig.Tag) then
 		return false
 	end
@@ -67,10 +51,6 @@ local function isValidRequest(player: Player, target: BasePart): (boolean, strin
 		return false
 	end
 
-	if not hasLineOfSight(player, target) then
-		return false
-	end
-
 	return true, interactionId, plot
 end
 
@@ -81,23 +61,20 @@ function InteractionService.RegisterPlot(player: Player, plot: Model)
 		end
 	end
 
-	for partName, definition in InteractionConfig.Definitions do
-		local part = plot:FindFirstChild(partName)
+	for _, definition in InteractionConfig.Definitions do
+		getPlotPart(plot, definition.Path)
+		local target = getPlotModel(plot, definition.TargetPath)
 
-		if not part or not part:IsA("BasePart") then
-			error(`Plot for {player.Name} must contain a {partName} BasePart`)
-		end
-
-		part:SetAttribute(InteractionConfig.Attributes.Id, definition.Id)
-		part:SetAttribute(InteractionConfig.Attributes.ActionText, definition.ActionText)
-		part:SetAttribute(InteractionConfig.Attributes.ObjectText, definition.ObjectText)
-		part:SetAttribute(InteractionConfig.Attributes.MaxDistance, definition.MaxDistance)
-		part:SetAttribute(InteractionConfig.Attributes.OwnerUserId, player.UserId)
-		CollectionService:AddTag(part, InteractionConfig.Tag)
+		target:SetAttribute(InteractionConfig.Attributes.Id, definition.Id)
+		target:SetAttribute(InteractionConfig.Attributes.ActionText, definition.ActionText)
+		target:SetAttribute(InteractionConfig.Attributes.ObjectText, definition.ObjectText)
+		target:SetAttribute(InteractionConfig.Attributes.MaxDistance, definition.MaxDistance)
+		target:SetAttribute(InteractionConfig.Attributes.OwnerUserId, player.UserId)
+		CollectionService:AddTag(target, InteractionConfig.Tag)
 	end
 end
 
-function InteractionService.Start(handler: (Player, string, Model) -> ())
+function InteractionService.Start(handler: (Player, string, Model, Model) -> ())
 	if Local.started then
 		return
 	end
@@ -105,14 +82,14 @@ function InteractionService.Start(handler: (Player, string, Model) -> ())
 	Local.started = true
 
 	interactionEvent.OnServerEvent:Connect(function(player, target)
-		if not interactionRateLimit:CheckRate(player) or typeof(target) ~= "Instance" or not target:IsA("BasePart") then
+		if not interactionRateLimit:CheckRate(player) or typeof(target) ~= "Instance" or not target:IsA("Model") then
 			return
 		end
 
 		local isValid, interactionId, plot = isValidRequest(player, target)
 
 		if isValid and interactionId and plot then
-			handler(player, interactionId, plot)
+			handler(player, interactionId, plot, target)
 		end
 	end)
 end
