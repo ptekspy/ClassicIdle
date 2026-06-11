@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
+local InteractionController = require(script.Parent.Controllers.InteractionController)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -88,3 +89,5 @@ local function showFeedback(message: string)
 end
 
 feedbackEvent.OnClientEvent:Connect(showFeedback)
+
+InteractionController.Start()

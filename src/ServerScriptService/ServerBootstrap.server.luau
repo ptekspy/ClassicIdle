@@ -7,9 +7,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Services = ReplicatedStorage:WaitForChild("Services")
 
 local DataService = require(Services:WaitForChild("DataService"))
-local WorldService = require(Services:WaitForChild("WorldService"))
 local DisplayService = require(Services:WaitForChild("DisplayService"))
+local InteractionService = require(Services:WaitForChild("InteractionService"))
 local PlotService = require(Services:WaitForChild("PlotService"))
+local WorldService = require(Services:WaitForChild("WorldService"))
 
 local function onPlayerAdded(player: Player)
 	if not DataService.Load(player) then
@@ -24,6 +25,7 @@ local function onPlayerAdded(player: Player)
 		return
 	end
 
+	InteractionService.RegisterPlot(player, plot)
 	DisplayService.SetupLeaderstats(player)
 	WorldService.SetupPlayer(player, plot)
 	DisplayService.UpdateAll(player, plot)
@@ -36,6 +38,8 @@ local function onPlayerRemoving(player: Player)
 	PlotService.Release(player)
 	DataService.Release(player)
 end
+
+InteractionService.Start(WorldService.HandleInteraction)
 
 Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
