@@ -4,13 +4,13 @@
     "$className": "DataModel",
     "ReplicatedStorage": {
       "$path": "src/ReplicatedStorage",
-      "Packages": {
+      "Vendor": {
         "$path": "Packages"
       }
     },
     "ServerScriptService": {
       "$path": "src/ServerScriptService",
-      "ServerPackages": {
+      "ServerVendor": {
         "$path": "ServerPackages"
       }
     },
