@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldUIService = require(ReplicatedStorage.Services.WorldUIService)
 
 local Maid = require(ReplicatedStorage.Packages.Maid)
 local PlotConfig = require(ReplicatedStorage.Plot.Config)
@@ -146,6 +147,7 @@ function PlotService.Release(player: Player)
 	end
 
 	if plot then
+		WorldUIService.UnmountTree(plot)
 		plot:Destroy()
 	end
 end

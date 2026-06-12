@@ -5,13 +5,14 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local UIState = require(script.Parent.Parent.UI.UIState)
+
 local PlotConfig = require(ReplicatedStorage.Plot.Config)
 local ResourceCatalog = require(ReplicatedStorage.Resource.Config)
 local ResourceConfig = require(ReplicatedStorage.ResourceNode.Config)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
 local questUpdateEvent = RemoteManager.QuestUpdate :: RemoteEvent
 local getQuestStateFunction = RemoteManager.GetQuestState :: RemoteFunction
 
@@ -41,73 +42,6 @@ local objectiveCosts = {
 	HireCoalNPC = 500,
 }
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "QuestGui"
-gui.DisplayOrder = 15
-gui.IgnoreGuiInset = true
-gui.ResetOnSpawn = false
-gui.Parent = playerGui
-
-local card = Instance.new("Frame")
-card.Name = "QuestCard"
-card.Position = UDim2.fromOffset(20, 20)
-card.Size = UDim2.new(0.38, 0, 0, 150)
-card.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-card.BackgroundTransparency = 0.08
-card.Parent = gui
-
-local constraint = Instance.new("UISizeConstraint")
-constraint.MinSize = Vector2.new(280, 150)
-constraint.MaxSize = Vector2.new(460, 150)
-constraint.Parent = card
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 14)
-corner.Parent = card
-
-local heading = Instance.new("TextLabel")
-heading.Position = UDim2.fromOffset(16, 10)
-heading.Size = UDim2.new(1, -32, 0, 22)
-heading.BackgroundTransparency = 1
-heading.Font = Enum.Font.GothamBold
-heading.Text = "CURRENT QUEST"
-heading.TextColor3 = Color3.fromRGB(110, 215, 125)
-heading.TextSize = 14
-heading.TextXAlignment = Enum.TextXAlignment.Left
-heading.Parent = card
-
-local title = Instance.new("TextLabel")
-title.Position = UDim2.fromOffset(16, 32)
-title.Size = UDim2.new(1, -32, 0, 30)
-title.BackgroundTransparency = 1
-title.Font = Enum.Font.GothamBold
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextSize = 21
-title.TextTruncate = Enum.TextTruncate.AtEnd
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = card
-
-local description = Instance.new("TextLabel")
-description.Position = UDim2.fromOffset(16, 64)
-description.Size = UDim2.new(1, -32, 0, 42)
-description.BackgroundTransparency = 1
-description.Font = Enum.Font.Gotham
-description.TextColor3 = Color3.fromRGB(215, 215, 215)
-description.TextSize = 15
-description.TextWrapped = true
-description.TextXAlignment = Enum.TextXAlignment.Left
-description.TextYAlignment = Enum.TextYAlignment.Top
-description.Parent = card
-
-local progress = Instance.new("TextLabel")
-progress.Position = UDim2.fromOffset(16, 112)
-progress.Size = UDim2.new(1, -32, 0, 24)
-progress.BackgroundTransparency = 1
-progress.Font = Enum.Font.GothamBold
-progress.TextColor3 = Color3.fromRGB(255, 255, 255)
-progress.TextSize = 15
-progress.TextXAlignment = Enum.TextXAlignment.Left
-progress.Parent = card
 
 local highlight = Instance.new("Highlight")
 highlight.Name = "QuestTargetHighlight"
@@ -118,28 +52,6 @@ highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
 highlight.OutlineTransparency = 0
 highlight.Enabled = false
 highlight.Parent = workspace
-
-local marker = Instance.new("BillboardGui")
-marker.Name = "QuestTargetMarker"
-marker.Size = UDim2.fromOffset(120, 38)
-marker.StudsOffset = Vector3.new(0, 5, 0)
-marker.AlwaysOnTop = true
-marker.Enabled = false
-marker.Parent = gui
-
-local markerLabel = Instance.new("TextLabel")
-markerLabel.Size = UDim2.fromScale(1, 1)
-markerLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-markerLabel.BackgroundTransparency = 0.15
-markerLabel.Font = Enum.Font.GothamBold
-markerLabel.Text = "QUEST"
-markerLabel.TextColor3 = Color3.new(1, 1, 1)
-markerLabel.TextSize = 15
-markerLabel.Parent = marker
-
-local markerCorner = Instance.new("UICorner")
-markerCorner.CornerRadius = UDim.new(0, 10)
-markerCorner.Parent = markerLabel
 
 local beam = Instance.new("Beam")
 beam.Name = "QuestWayfindingBeam"
@@ -287,8 +199,7 @@ end
 local function clearTarget()
 	highlight.Adornee = nil
 	highlight.Enabled = false
-	marker.Adornee = nil
-	marker.Enabled = false
+	UIState.Set("questMarker", nil)
 	beam.Attachment0 = nil
 	beam.Attachment1 = nil
 	beam.Enabled = false
@@ -328,8 +239,7 @@ local function updateTarget()
 
 	highlight.Adornee = target
 	highlight.Enabled = true
-	marker.Adornee = targetPart
-	marker.Enabled = true
+	UIState.Set("questMarker", targetPart)
 	beam.Attachment0 = rootAttachment :: Attachment
 	beam.Attachment1 = targetAttachment
 	beam.Enabled = true
@@ -340,15 +250,12 @@ local function showState(state: any)
 		return
 	end
 	Local.currentState = state
-	card.Visible = not state.Complete
+	UIState.Set("quest", state)
 	if state.Complete then
 		clearTarget()
 		return
 	end
-
-	title.Text = state.Title
-	description.Text = state.Description
-	progress.Text = `{math.floor(state.Progress * 100) / 100}/{state.RequiredAmount}  •  +{state.XPReward} XP`
+	
 	updateTarget()
 end
 

@@ -7,6 +7,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local UIState = require(script.Parent.Parent.UI.UIState)
+
+
 local InteractionConfig = require(ReplicatedStorage.Interaction.Config)
 local getClosestPoint = require(ReplicatedStorage.Interaction.getClosestPoint)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
@@ -16,24 +19,19 @@ type InteractionTarget = Model
 
 local interactionEvent = RemoteManager.InteractionRequest :: RemoteEvent
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+
 local plotSpawns = workspace:WaitForChild("PlotSpawns")
 
 local Local = {
 	FALLBACK_SCREEN_RADIUS = 220,
 	inputMode = "MouseKeyboard" :: InputMode,
 	focusedTarget = nil :: InteractionTarget?,
+	lastPublishedTarget = nil :: InteractionTarget?,
+	lastPublishedInputMode = nil :: InputMode?,
 	started = false,
 }
 
 local InteractionController = {}
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "InteractionGui"
-gui.DisplayOrder = 20
-gui.IgnoreGuiInset = true
-gui.ResetOnSpawn = false
-gui.Parent = playerGui
 
 local highlight = Instance.new("Highlight")
 highlight.Name = "InteractionHighlight"
@@ -43,93 +41,6 @@ highlight.OutlineColor = Color3.new(1, 1, 1)
 highlight.OutlineTransparency = 0
 highlight.Enabled = false
 highlight.Parent = workspace
-
-local prompt = Instance.new("Frame")
-prompt.Name = "Prompt"
-prompt.AnchorPoint = Vector2.new(0.5, 1)
-prompt.Position = UDim2.fromScale(0.5, 0.92)
-prompt.Size = UDim2.new(0.8, 0, 0, 82)
-prompt.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-prompt.BackgroundTransparency = 0.12
-prompt.Visible = false
-prompt.Parent = gui
-
-local promptSizeConstraint = Instance.new("UISizeConstraint")
-promptSizeConstraint.MaxSize = Vector2.new(440, 82)
-promptSizeConstraint.MinSize = Vector2.new(240, 82)
-promptSizeConstraint.Parent = prompt
-
-local promptCorner = Instance.new("UICorner")
-promptCorner.CornerRadius = UDim.new(0, 12)
-promptCorner.Parent = prompt
-
-local actionLabel = Instance.new("TextLabel")
-actionLabel.Name = "Action"
-actionLabel.Position = UDim2.fromOffset(18, 8)
-actionLabel.Size = UDim2.new(1, -110, 0, 32)
-actionLabel.BackgroundTransparency = 1
-actionLabel.Font = Enum.Font.GothamBold
-actionLabel.TextColor3 = Color3.new(1, 1, 1)
-actionLabel.TextSize = 21
-actionLabel.TextXAlignment = Enum.TextXAlignment.Left
-actionLabel.Parent = prompt
-
-local objectLabel = Instance.new("TextLabel")
-objectLabel.Name = "Object"
-objectLabel.Position = UDim2.fromOffset(18, 40)
-objectLabel.Size = UDim2.new(1, -110, 0, 28)
-objectLabel.BackgroundTransparency = 1
-objectLabel.Font = Enum.Font.Gotham
-objectLabel.TextColor3 = Color3.fromRGB(205, 205, 205)
-objectLabel.TextSize = 16
-objectLabel.TextTruncate = Enum.TextTruncate.AtEnd
-objectLabel.TextXAlignment = Enum.TextXAlignment.Left
-objectLabel.Parent = prompt
-
-local inputHint = Instance.new("TextLabel")
-inputHint.Name = "InputHint"
-inputHint.AnchorPoint = Vector2.new(1, 0.5)
-inputHint.Position = UDim2.new(1, -16, 0.5, 0)
-inputHint.Size = UDim2.fromOffset(72, 48)
-inputHint.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-inputHint.Font = Enum.Font.GothamBold
-inputHint.TextColor3 = Color3.fromRGB(25, 25, 25)
-inputHint.TextSize = 16
-inputHint.Parent = prompt
-
-local hintCorner = Instance.new("UICorner")
-hintCorner.CornerRadius = UDim.new(0, 10)
-hintCorner.Parent = inputHint
-
-local touchButton = Instance.new("TextButton")
-touchButton.Name = "TouchInteract"
-touchButton.AnchorPoint = Vector2.new(1, 1)
-touchButton.Position = UDim2.new(1, -24, 1, -118)
-touchButton.Size = UDim2.fromOffset(104, 104)
-touchButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-touchButton.Font = Enum.Font.GothamBold
-touchButton.Text = "INTERACT"
-touchButton.TextColor3 = Color3.fromRGB(25, 25, 25)
-touchButton.TextSize = 15
-touchButton.Visible = false
-touchButton.Parent = gui
-
-local touchCorner = Instance.new("UICorner")
-touchCorner.CornerRadius = UDim.new(1, 0)
-touchCorner.Parent = touchButton
-
-local crosshair = Instance.new("Frame")
-crosshair.Name = "Crosshair"
-crosshair.AnchorPoint = Vector2.new(0.5, 0.5)
-crosshair.Position = UDim2.fromScale(0.5, 0.5)
-crosshair.Size = UDim2.fromOffset(8, 8)
-crosshair.BackgroundColor3 = Color3.new(1, 1, 1)
-crosshair.Visible = false
-crosshair.Parent = gui
-
-local crosshairCorner = Instance.new("UICorner")
-crosshairCorner.CornerRadius = UDim.new(1, 0)
-crosshairCorner.Parent = crosshair
 
 local function getInputMode(inputType: Enum.UserInputType): InputMode
 	if inputType == Enum.UserInputType.Touch then
@@ -321,27 +232,28 @@ local function updatePrompt()
 
 	highlight.Adornee = target
 	highlight.Enabled = hasTarget
-	prompt.Visible = hasTarget
-	touchButton.Visible = hasTarget and Local.inputMode == "Touch"
-	crosshair.Visible = Local.inputMode ~= "MouseKeyboard"
 
-	if not target then
+	if target == Local.lastPublishedTarget and Local.inputMode == Local.lastPublishedInputMode then
 		return
 	end
+	Local.lastPublishedTarget = target
+	Local.lastPublishedInputMode = Local.inputMode
 
-	local actionText = target:GetAttribute(InteractionConfig.Attributes.ActionText)
-	local objectText = target:GetAttribute(InteractionConfig.Attributes.ObjectText)
+	local actionText = if target then target:GetAttribute(InteractionConfig.Attributes.ActionText) else nil
+	local objectText = if target then target:GetAttribute(InteractionConfig.Attributes.ObjectText) else nil
+	local inputHint = if Local.inputMode == "Touch"
+		then "TAP"
+		elseif Local.inputMode == "Gamepad" then "X"
+		else "E / CLICK"
 
-	actionLabel.Text = if typeof(actionText) == "string" then actionText else "Interact"
-	objectLabel.Text = if typeof(objectText) == "string" then objectText else target.Name
-
-	if Local.inputMode == "Touch" then
-		inputHint.Text = "TAP"
-	elseif Local.inputMode == "Gamepad" then
-		inputHint.Text = "X"
-	else
-		inputHint.Text = "E / CLICK"
-	end
+	UIState.Set("interaction", {
+		visible = hasTarget,
+		actionText = if typeof(actionText) == "string" then actionText else "Interact",
+		objectText = if typeof(objectText) == "string" then objectText else if target then target.Name else "",
+		inputHint = inputHint,
+		inputMode = Local.inputMode,
+		onActivated = activateFocusedTarget,
+	})
 end
 
 function InteractionController.Start()
@@ -371,8 +283,6 @@ function InteractionController.Start()
 			activateFocusedTarget()
 		end
 	end)
-
-	touchButton.Activated:Connect(activateFocusedTarget)
 
 	RunService.RenderStepped:Connect(function()
 		Local.focusedTarget = getTarget()

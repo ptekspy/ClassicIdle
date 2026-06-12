@@ -1,26 +1,24 @@
 --!strict
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local React = require(ReplicatedStorage.Vendor.React)
 local DataService = require(script.Parent.DataService)
-local PlayerDataReplicaService = require(script.Parent.PlayerDataReplicaService)
 local EconomyService = require(script.Parent.EconomyService)
+local PlayerDataReplicaService = require(script.Parent.PlayerDataReplicaService)
 local PlotConfig = require(ReplicatedStorage.Plot.Config)
 local ResourceConfig = require(ReplicatedStorage.Resource.Config)
-local getPlotBillboardGui = require(ReplicatedStorage.Plot.getBillboardGui)
+local SellBillboard = require(ReplicatedStorage.UI.World.SellBillboard)
+local SellSurfaceDisplay = require(ReplicatedStorage.UI.World.SellSurfaceDisplay)
+local WorldLabel = require(ReplicatedStorage.UI.World.WorldLabel)
+local WorldUIService = require(script.Parent.WorldUIService)
 local getPlotPart = require(ReplicatedStorage.Plot.getPart)
-local getPlotTextLabel = require(ReplicatedStorage.Plot.getTextLabel)
 
-local Local = {}
 local DisplayService = {}
 
-function Local.createOrGetBillboard(part: BasePart, name: string, size: UDim2, offset: Vector3): BillboardGui
+local function getBillboard(part: BasePart, name: string, size: UDim2, offset: Vector3): BillboardGui
 	local existing = part:FindFirstChild(name)
-
 	if existing and existing:IsA("BillboardGui") then
-		existing.Size = size
-		existing.StudsOffset = offset
-		existing.MaxDistance = 35
-		existing.AlwaysOnTop = false
 		return existing
 	end
 
@@ -31,30 +29,19 @@ function Local.createOrGetBillboard(part: BasePart, name: string, size: UDim2, o
 	gui.AlwaysOnTop = false
 	gui.MaxDistance = 35
 	gui.Parent = part
-
-	local label = Instance.new("TextLabel")
-	label.Name = "Label"
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-	label.BackgroundTransparency = 0.2
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.TextScaled = true
-	label.TextWrapped = true
-	label.Font = Enum.Font.GothamBold
-	label.Parent = gui
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = label
-
 	return gui
+end
+
+local function renderWorldLabel(part: BasePart, name: string, size: UDim2, offset: Vector3, text: string)
+	local gui = getBillboard(part, name, size, offset)
+	WorldUIService.Render(gui, React.createElement(WorldLabel, {
+		text = text,
+	}))
 end
 
 function DisplayService.SetupLeaderstats(player: Player)
 	local data = DataService.Get(player)
-
 	local existing = player:FindFirstChild("leaderstats")
-
 	if existing then
 		existing:Destroy()
 	end
@@ -87,25 +74,21 @@ end
 function DisplayService.UpdateLeaderstats(player: Player)
 	local data = DataService.Get(player)
 	local leaderstats = player:FindFirstChild("leaderstats")
-
 	if not leaderstats then
 		return
 	end
 
 	local gold = leaderstats:FindFirstChild("Gold")
 	local xp = leaderstats:FindFirstChild("XP")
-
 	if gold and gold:IsA("NumberValue") then
 		gold.Value = data.Gold
 	end
-
 	for _, resourceId in ResourceConfig.Order do
 		local value = leaderstats:FindFirstChild(resourceId)
 		if value and (value:IsA("IntValue") or value:IsA("NumberValue")) then
 			value.Value = EconomyService.GetResourceAmount(data, resourceId)
 		end
 	end
-
 	if xp and xp:IsA("IntValue") then
 		xp.Value = data.XP
 	end
@@ -115,68 +98,66 @@ end
 
 function DisplayService.UpdateStorageDisplay(player: Player, plot: Model)
 	local data = DataService.Get(player)
-	local storageBin = getPlotPart(plot, PlotConfig.Paths.StorageDisplayAnchor)
-
-	local gui =
-		Local.createOrGetBillboard(storageBin, "StorageDisplay", UDim2.fromOffset(170, 85), Vector3.new(0, 3.5, 0))
-
-	local label = gui:FindFirstChild("Label")
-
-	if label and label:IsA("TextLabel") then
-		local used = EconomyService.GetUsedStorage(data)
-		local capacity = EconomyService.GetStorageCapacity(data)
-
-		local lines = { `Storage {used}/{capacity}` }
-		for _, resourceId in ResourceConfig.Order do
-			local definition = ResourceConfig.Get(resourceId)
-			if definition then
-				table.insert(lines, `{definition.DisplayName}: {EconomyService.GetResourceAmount(data, resourceId)}`)
-			end
+	local lines = { `Storage {EconomyService.GetUsedStorage(data)}/{EconomyService.GetStorageCapacity(data)}` }
+	for _, resourceId in ResourceConfig.Order do
+		local definition = ResourceConfig.Get(resourceId)
+		if definition then
+			table.insert(lines, `{definition.DisplayName}: {EconomyService.GetResourceAmount(data, resourceId)}`)
 		end
-		label.Text = table.concat(lines, "\n")
 	end
+	renderWorldLabel(
+		getPlotPart(plot, PlotConfig.Paths.StorageDisplayAnchor),
+		"StorageDisplay",
+		UDim2.fromOffset(170, 85),
+		Vector3.new(0, 3.5, 0),
+		table.concat(lines, "\n")
+	)
 end
 
 function DisplayService.UpdateMachineDisplays(player: Player, plot: Model)
 	local data = DataService.Get(player)
-	local purchasePad = getPlotPart(plot, PlotConfig.Paths.NPCPurchasePad)
-	local gui = Local.createOrGetBillboard(purchasePad, "NPCDisplay", UDim2.fromOffset(190, 75), Vector3.new(0, 3.5, 0))
-	local label = gui:FindFirstChild("Label")
-
-	if label and label:IsA("TextLabel") then
-		label.Text = `Hire NPCs\nOwned: {EconomyService.GetNPCCount(data)}`
-	end
+	renderWorldLabel(
+		getPlotPart(plot, PlotConfig.Paths.NPCPurchasePad),
+		"NPCDisplay",
+		UDim2.fromOffset(190, 75),
+		Vector3.new(0, 3.5, 0),
+		`Hire NPCs\nOwned: {EconomyService.GetNPCCount(data)}`
+	)
 end
 
 function DisplayService.UpdateUpgradeButtonDisplays(player: Player, plot: Model)
 	local data = DataService.Get(player)
-	local storageButton = getPlotPart(plot, PlotConfig.Paths.StorageUpgradeButton)
-
-	local storageGui =
-		Local.createOrGetBillboard(storageButton, "UpgradeDisplay", UDim2.fromOffset(175, 75), Vector3.new(0, 3.5, 0))
-
-	local storageLabel = storageGui:FindFirstChild("Label")
-
-	if storageLabel and storageLabel:IsA("TextLabel") then
-		local cost = EconomyService.GetStorageUpgradeCost(data)
-		local currentCapacity = EconomyService.GetStorageCapacity(data)
-
-		storageLabel.Text = `Upgrade Storage\nCapacity: {currentCapacity}\nCost: {cost} Gold`
-	end
+	renderWorldLabel(
+		getPlotPart(plot, PlotConfig.Paths.StorageUpgradeButton),
+		"UpgradeDisplay",
+		UDim2.fromOffset(175, 75),
+		Vector3.new(0, 3.5, 0),
+		`Upgrade Storage\nCapacity: {EconomyService.GetStorageCapacity(data)}\nCost: {EconomyService.GetStorageUpgradeCost(data)} Gold`
+	)
 end
 
 function DisplayService.UpdateSellDisplay(player: Player, plot: Model)
-	local data = DataService.Get(player)
-	local totalSellValue = EconomyService.GetTotalSellValue(data)
+	local value = EconomyService.GetTotalSellValue(DataService.Get(player))
 	local touchPad = getPlotPart(plot, PlotConfig.Paths.SellTouchPad)
-	local billboard = getPlotBillboardGui(plot, PlotConfig.Paths.SellBillboard)
-	local billboardLabel = getPlotTextLabel(plot, PlotConfig.Paths.SellBillboardLabel)
-	local screenLabel = getPlotTextLabel(plot, PlotConfig.Paths.SellScreenLabel)
+	local screenPart = getPlotPart(plot, PlotConfig.Paths.SellScreen)
 
+	local billboard = getBillboard(touchPad, "SellBillboard", UDim2.fromScale(3, 3), Vector3.zero)
 	billboard.Adornee = touchPad
-	billboardLabel.Text =
-		`<stroke color="rgb(0, 118, 0)" joins="miter" thickness="7" transparency="0.5">${totalSellValue}</stroke>`
-	screenLabel.Text = `${totalSellValue}`
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = 50
+	billboard.SizeOffset = Vector2.new(0, 2)
+	WorldUIService.Render(billboard, React.createElement(SellBillboard, { value = value }))
+
+	local surface = screenPart:FindFirstChild("SellSurfaceDisplay")
+	if not surface or not surface:IsA("SurfaceGui") then
+		surface = Instance.new("SurfaceGui")
+		surface.Name = "SellSurfaceDisplay"
+		surface.Face = Enum.NormalId.Right
+		surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		surface.PixelsPerStud = 50
+		surface.Parent = screenPart
+	end
+	WorldUIService.Render(surface, React.createElement(SellSurfaceDisplay, { value = value }))
 end
 
 function DisplayService.UpdateAll(player: Player, plot: Model)

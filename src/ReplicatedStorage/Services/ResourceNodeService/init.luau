@@ -1,8 +1,12 @@
 --!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local React = require(ReplicatedStorage.Vendor.React)
+local RespawnProgress = require(ReplicatedStorage.UI.World.RespawnProgress)
+local WorldUIService = require(ReplicatedStorage.Services.WorldUIService)
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local ResourceCatalog = require(ReplicatedStorage.Resource.Config)
@@ -53,25 +57,9 @@ local function createProgressGui(node: Model): BillboardGui
 	gui.Enabled = false
 	gui.Parent = primaryPart
 
-	local background = Instance.new("Frame")
-	background.Name = "Background"
-	background.Size = UDim2.fromScale(1, 1)
-	background.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-	background.Parent = gui
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = background
-
-	local fill = Instance.new("Frame")
-	fill.Name = "Fill"
-	fill.Size = UDim2.fromScale(0, 1)
-	fill.BackgroundColor3 = Color3.fromRGB(95, 220, 110)
-	fill.Parent = background
-
-	local fillCorner = Instance.new("UICorner")
-	fillCorner.CornerRadius = UDim.new(0, 8)
-	fillCorner.Parent = fill
+	WorldUIService.Render(gui, React.createElement(RespawnProgress, {
+		progress = 0,
+	}))
 	return gui
 end
 
@@ -97,19 +85,19 @@ local function beginRespawn(state: NodeState)
 		getNumberAttribute(state.Model, ResourceConfig.Attributes.RespawnSeconds, ResourceConfig.DefaultRespawnSeconds)
 	)
 	local gui = createProgressGui(state.Model)
-	local background = gui:FindFirstChild("Background") :: Frame
-	local fill = background:FindFirstChild("Fill") :: Frame
 
 	clearReservations(state)
 	setDepletedAppearance(state, true)
 	gui.Enabled = true
-	fill.Size = UDim2.fromScale(0, 1)
+	WorldUIService.Render(gui, React.createElement(RespawnProgress, { progress = 0 }))
 	state.Model:SetAttribute(ResourceConfig.Attributes.IsDepleted, true)
 
 	task.spawn(function()
 		local startedAt = os.clock()
 		while state.RespawnToken == token and state.Model.Parent and os.clock() - startedAt < duration do
-			fill.Size = UDim2.fromScale(math.clamp((os.clock() - startedAt) / duration, 0, 1), 1)
+			WorldUIService.Render(gui, React.createElement(RespawnProgress, {
+				progress = math.clamp((os.clock() - startedAt) / duration, 0, 1),
+			}))
 			RunService.Heartbeat:Wait()
 		end
 
@@ -121,7 +109,7 @@ local function beginRespawn(state: NodeState)
 		state.Model:SetAttribute(ResourceConfig.Attributes.AvailableAmount, state.Available)
 		state.Model:SetAttribute(ResourceConfig.Attributes.IsDepleted, false)
 		setDepletedAppearance(state, false)
-		fill.Size = UDim2.fromScale(1, 1)
+		WorldUIService.Render(gui, React.createElement(RespawnProgress, { progress = 1 }))
 		task.wait(1)
 		if state.RespawnToken == token then
 			gui.Enabled = false
@@ -196,6 +184,11 @@ function ResourceNodeService.UnregisterNode(node: Model)
 	local state = Local.nodes[node]
 	if not state then
 		return
+	end
+	local primaryPart = node.PrimaryPart
+	local progressGui = primaryPart and primaryPart:FindFirstChild("RespawnProgress")
+	if progressGui then
+		WorldUIService.Unmount(progressGui)
 	end
 	state.RespawnToken += 1
 	Local.nodes[node] = nil

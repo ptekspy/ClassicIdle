@@ -6,13 +6,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local UIState = require(script.Parent.Parent.UI.UIState)
+
 local FactoryConfig = require(ReplicatedStorage.Factory.Config)
 local FactoryGrid = require(ReplicatedStorage.Factory.Grid)
-local ResourceConfig = require(ReplicatedStorage.Resource.Config)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
 local templates = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("BuildItemTemplates")
 local requestEvent = RemoteManager.FactoryRequest :: RemoteEvent
 local stateEvent = RemoteManager.FactoryStateUpdate :: RemoteEvent
@@ -30,107 +30,14 @@ local Local = {
 	valid = false,
 	ghost = nil :: Model?,
 	started = false,
+	shopOpen = false,
+	managePayload = nil :: any,
 }
 
 local FactoryController = {}
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "FactoryGui"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.DisplayOrder = 35
-gui.Parent = playerGui
+local publish: () -> () = function() end
 
-local function frame(name: string, size: UDim2, position: UDim2): Frame
-	local value = Instance.new("Frame")
-	value.Name = name
-	value.Size = size
-	value.Position = position
-	value.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-	value.BackgroundTransparency = 0.08
-	value.Parent = gui
-	Instance.new("UICorner", value).CornerRadius = UDim.new(0, 12)
-	return value
-end
-
-local function button(parent: Instance, text: string, callback: () -> ()): TextButton
-	local value = Instance.new("TextButton")
-	value.Size = UDim2.new(1, 0, 0, 48)
-	value.BackgroundColor3 = Color3.fromRGB(65, 130, 80)
-	value.Font = Enum.Font.GothamBold
-	value.Text = text
-	value.TextColor3 = Color3.new(1, 1, 1)
-	value.TextSize = 15
-	value.TextWrapped = true
-	value.Parent = parent
-	Instance.new("UICorner", value).CornerRadius = UDim.new(0, 8)
-	value.Activated:Connect(callback)
-	return value
-end
-
-local shopButton = Instance.new("TextButton")
-shopButton.Name = "OpenShop"
-shopButton.Position = UDim2.new(1, -130, 0, 20)
-shopButton.Size = UDim2.fromOffset(110, 50)
-shopButton.BackgroundColor3 = Color3.fromRGB(65, 130, 80)
-shopButton.Font = Enum.Font.GothamBold
-shopButton.Text = "BUILD SHOP"
-shopButton.TextColor3 = Color3.new(1, 1, 1)
-shopButton.TextSize = 14
-shopButton.Parent = gui
-Instance.new("UICorner", shopButton).CornerRadius = UDim.new(0, 10)
-
-local shop = frame("Shop", UDim2.fromOffset(300, 430), UDim2.new(1, -320, 0, 80))
-shop.Visible = false
-local shopLayout = Instance.new("UIListLayout", shop)
-shopLayout.Padding = UDim.new(0, 8)
-shopLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-local hotbar = frame("Hotbar", UDim2.new(0.9, 0, 0, 68), UDim2.new(0.05, 0, 1, -88))
-local hotbarLayout = Instance.new("UIListLayout", hotbar)
-hotbarLayout.FillDirection = Enum.FillDirection.Horizontal
-hotbarLayout.Padding = UDim.new(0, 6)
-hotbarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-hotbarLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-
-local controls = frame("BuildControls", UDim2.fromOffset(360, 62), UDim2.new(0.5, -180, 1, -165))
-controls.Visible = false
-local controlsLayout = Instance.new("UIListLayout", controls)
-controlsLayout.FillDirection = Enum.FillDirection.Horizontal
-controlsLayout.Padding = UDim.new(0, 8)
-controlsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-controlsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-
-local function control(text: string, callback: () -> ())
-	local value = button(controls, text, callback)
-	value.Size = UDim2.fromOffset(105, 46)
-end
-
-local manage = frame("Manage", UDim2.fromOffset(320, 320), UDim2.new(0.5, -160, 0.5, -160))
-manage.Visible = false
-local manageLayout = Instance.new("UIListLayout", manage)
-manageLayout.Padding = UDim.new(0, 8)
-manageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-local manageTitle = Instance.new("TextLabel")
-manageTitle.Size = UDim2.new(1, 0, 0, 48)
-manageTitle.BackgroundTransparency = 1
-manageTitle.Font = Enum.Font.GothamBold
-manageTitle.TextColor3 = Color3.new(1, 1, 1)
-manageTitle.TextSize = 20
-manageTitle.Parent = manage
-
-local function manageLabel(text: string)
-	local value = Instance.new("TextLabel")
-	value.Size = UDim2.new(1, -16, 0, 58)
-	value.BackgroundTransparency = 1
-	value.Font = Enum.Font.Gotham
-	value.Text = text
-	value.TextColor3 = Color3.fromRGB(220, 220, 220)
-	value.TextSize = 14
-	value.TextWrapped = true
-	value.Parent = manage
-end
 
 local function getPlot(): Model?
 	local plots = workspace:FindFirstChild("PlayerPlots")
@@ -144,27 +51,17 @@ local function getPlot(): Model?
 	return nil
 end
 
-local function clearChildren(parent: Instance, keep: { Instance })
-	local kept = {}
-	for _, child in keep do
-		kept[child] = true
-	end
-	for _, child in parent:GetChildren() do
-		if not kept[child] then
-			child:Destroy()
-		end
-	end
-end
 
 local function stopBuild()
 	Local.selectedItemId = nil
 	Local.movingItemId = nil
 	Local.valid = false
-	controls.Visible = false
 	if Local.ghost then
 		Local.ghost:Destroy()
 		Local.ghost = nil
 	end
+
+	publish()
 end
 
 local function setGhostColor(valid: boolean)
@@ -197,9 +94,9 @@ local function beginBuild(itemId: string, movingId: string?, gridX: number?, gri
 	Local.ghost = template:Clone()
 	Local.ghost.Name = "FactoryGhost"
 	Local.ghost.Parent = workspace
-	controls.Visible = true
-	shop.Visible = false
-	manage.Visible = false
+	Local.shopOpen = false
+	Local.managePayload = nil
+	publish()
 	setGhostColor(false)
 end
 
@@ -220,42 +117,43 @@ local function confirm()
 	end
 end
 
-control("ROTATE\nR / Y", rotate)
-control("PLACE\nCLICK / A", confirm)
-control("CANCEL\nESC / B", stopBuild)
-
-local function refreshHotbar()
-	clearChildren(hotbar, { hotbarLayout })
-	if not Local.state then
-		return
-	end
-	for _, itemId in FactoryConfig.ItemOrder do
-		local count = Local.state.Inventory[itemId] or 0
-		if count > 0 then
-			local definition = FactoryConfig.Items[itemId]
-			local itemButton = button(hotbar, `{definition.DisplayName}\nx{count}`, function()
-				beginBuild(itemId, nil, nil, nil, nil)
-			end)
-			itemButton.Size = UDim2.fromOffset(135, 54)
-		end
-	end
+publish = function()
+	UIState.Set("factory", {
+		shopOpen = Local.shopOpen,
+		building = Local.selectedItemId ~= nil,
+		managePayload = Local.managePayload,
+		onToggleShop = function()
+			Local.shopOpen = not Local.shopOpen
+			publish()
+		end,
+		onCloseShop = function()
+			Local.shopOpen = false
+			publish()
+		end,
+		onPurchase = function(itemId: string)
+			requestEvent:FireServer("Purchase", itemId)
+		end,
+		onSelectItem = function(itemId: string)
+			beginBuild(itemId, nil, nil, nil, nil)
+		end,
+		onRotate = rotate,
+		onConfirm = confirm,
+		onCancel = stopBuild,
+		onMove = function(payload: any)
+			beginBuild(payload.ItemId, payload.PlacedItemId, payload.GridX, payload.GridZ, payload.Rotation)
+		end,
+		onConfigure = function(placedItemId: string, value: any)
+			requestEvent:FireServer("Configure", placedItemId, value)
+		end,
+		onCollect = function(placedItemId: string)
+			requestEvent:FireServer("Collect", placedItemId)
+		end,
+		onCloseManage = function()
+			Local.managePayload = nil
+			publish()
+		end,
+	})
 end
-
-for _, itemId in FactoryConfig.ItemOrder do
-	local definition = FactoryConfig.Items[itemId]
-	local itemButton = button(shop, `{definition.DisplayName} - {definition.Price} Gold`, function()
-		requestEvent:FireServer("Purchase", itemId)
-	end)
-	itemButton.Size = UDim2.new(1, -16, 0, 56)
-end
-local closeShop = button(shop, "CLOSE", function()
-	shop.Visible = false
-end)
-closeShop.Size = UDim2.new(1, -16, 0, 42)
-
-shopButton.Activated:Connect(function()
-	shop.Visible = not shop.Visible
-end)
 
 local function isBlocked(plot: Model, bounds: BasePart, gridX: number, gridZ: number): boolean
 	local buildGrid = plot:FindFirstChild("BuildGrid")
@@ -376,35 +274,8 @@ local function showMenu(payload: any)
 	if typeof(payload) ~= "table" or typeof(payload.PlacedItemId) ~= "string" then
 		return
 	end
-	clearChildren(manage, { manageLayout, manageTitle })
-	manageTitle.Text = payload.DisplayName
-	manage.Visible = true
-	button(manage, "MOVE", function()
-		beginBuild(payload.ItemId, payload.PlacedItemId, payload.GridX, payload.GridZ, payload.Rotation)
-	end)
-	if payload.ItemId == "ConveyorDropper" then
-		manageLabel("Runs automatically while the selected resource is in Storage and a valid conveyor is connected.")
-		for _, resourceId in payload.ResourceOptions or {} do
-			local definition = ResourceConfig.Get(resourceId)
-			if definition then
-				button(manage, `DROP {string.upper(definition.DisplayName)}`, function()
-					requestEvent:FireServer("Configure", payload.PlacedItemId, resourceId)
-				end)
-			end
-		end
-	elseif payload.ItemId == "CornerConveyor" then
-		button(manage, "REVERSE CORNER FLOW", function()
-			requestEvent:FireServer("Configure", payload.PlacedItemId, if payload.ConnectorMode == 2 then 1 else 2)
-		end)
-	elseif payload.ItemId == "ConveyorCollectionBin" then
-		manageLabel("Factory output waits here. Collect it manually to move as much as possible into Storage.")
-		button(manage, `COLLECT {payload.StoredAmount or 0} {payload.StoredResourceType or ""}`, function()
-			requestEvent:FireServer("Collect", payload.PlacedItemId)
-		end)
-	end
-	button(manage, "CLOSE", function()
-		manage.Visible = false
-	end)
+	Local.managePayload = payload
+	publish()
 end
 
 function FactoryController.Start()
@@ -414,7 +285,7 @@ function FactoryController.Start()
 	Local.started = true
 	stateEvent.OnClientEvent:Connect(function(state)
 		Local.state = state
-		refreshHotbar()
+		publish()
 		if Local.selectedItemId and not Local.movingItemId and (state.Inventory[Local.selectedItemId] or 0) <= 0 then
 			stopBuild()
 		end
@@ -444,9 +315,11 @@ function FactoryController.Start()
 		end)
 		if ok and state then
 			Local.state = state
-			refreshHotbar()
+			publish()
 		end
 	end)
+
+	publish()
 end
 
 return FactoryController

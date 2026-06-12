@@ -6,9 +6,12 @@ local DataService_Default = require(ReplicatedStorage.Services.DataService.Defau
 local DataService_Types = require(ReplicatedStorage.Services.DataService.Types)
 local React = require(ReplicatedStorage.Vendor.React)
 local Replica = require(ReplicatedStorage.Packages.Replica.Client)
+local ReplicaTypes = require(ReplicatedStorage.Packages.Replica.Client.Types)
 
 type PlayerData = DataService_Types.PlayerData
-type PlayerDataReplica = DataService_Types.PlayerDataReplica
+type PlayerDataReplica = ReplicaTypes.Replica & {
+	Data: PlayerData,
+}
 
 type PlayerDataProviderProps = {
 	children: React.ReactNode,
@@ -24,7 +27,7 @@ local function PlayerDataProvider(props: PlayerDataProviderProps)
 	local playerData, setPlayerData = React.useState(copySnapshot(DataService_Default :: PlayerData))
 
 	React.useEffect(function()
-		local changeConnection: RBXScriptConnection? = nil
+		local changeConnection: ReplicaTypes.SignalConnection? = nil
 
 		local newReplicaConnection = Replica.OnNew("PlayerData", function(replica: PlayerDataReplica)
 			setPlayerData(copySnapshot(replica.Data))

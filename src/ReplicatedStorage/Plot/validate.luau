@@ -1,10 +1,8 @@
 --!strict
 
 local Config = require(script.Parent.Config)
-local getBillboardGui = require(script.Parent.getBillboardGui)
 local getModel = require(script.Parent.getModel)
 local getPart = require(script.Parent.getPart)
-local getTextLabel = require(script.Parent.getTextLabel)
 local resolve = require(script.Parent.resolve)
 
 local function validate(plot: Model)
@@ -29,6 +27,7 @@ local function validate(plot: Model)
 			paths.StorageDropTarget,
 			paths.PlayerSpawn,
 			paths.BuildGridBounds,
+			paths.SellScreen
 		}
 	do
 		getPart(plot, path)
@@ -67,10 +66,6 @@ local function validate(plot: Model)
 			error(`{plot:GetFullName()} must contain Folder {folderName}`)
 		end
 	end
-
-	getBillboardGui(plot, paths.SellBillboard)
-	getTextLabel(plot, paths.SellBillboardLabel)
-	getTextLabel(plot, paths.SellScreenLabel)
 end
 
 return validate

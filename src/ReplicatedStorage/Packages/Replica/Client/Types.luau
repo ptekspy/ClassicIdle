@@ -35,3 +35,5 @@ export type Replica = {
 	Identify: (self: any) -> string,
 	IsActive: (self: any) -> boolean,
 }
+
+return {}
