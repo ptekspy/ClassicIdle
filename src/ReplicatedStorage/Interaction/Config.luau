@@ -45,14 +45,6 @@ local Config = {
 			ObjectText = "50 Gold",
 			MaxDistance = 10,
 		},
-		CoalProcessor = {
-			Id = "ProcessCoal",
-			Path = PlotConfig.Paths.CoalProcessor,
-			TargetPath = PlotConfig.Paths.CoalProcessorTarget,
-			ActionText = "Locked",
-			ObjectText = "Buy Auto Miner First",
-			MaxDistance = 10,
-		},
 	} :: { [string]: Types.Definition },
 }
 

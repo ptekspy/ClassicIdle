@@ -3,7 +3,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PlayerTypes = require(ReplicatedStorage.Services.DataService.Types)
-local WorkerConfig = require(ReplicatedStorage.Worker.Config)
 local WorkerTypes = require(ReplicatedStorage.Worker.Types)
 
 local Local = {
@@ -41,7 +40,11 @@ function EconomyService.IsStorageFull(data: PlayerTypes.PlayerData): boolean
 	return EconomyService.GetRemainingStorage(data) <= 0
 end
 
-function EconomyService.AddResource(data: PlayerTypes.PlayerData, resourceType: WorkerTypes.ResourceType, amount: number): number
+function EconomyService.AddResource(
+	data: PlayerTypes.PlayerData,
+	resourceType: WorkerTypes.ResourceType,
+	amount: number
+): number
 	local acceptedAmount = EconomyService.GetAcceptedResourceAmount(data, amount)
 
 	if acceptedAmount <= 0 then
@@ -59,8 +62,15 @@ function EconomyService.AddResource(data: PlayerTypes.PlayerData, resourceType: 
 	return acceptedAmount
 end
 
-function EconomyService.RemoveResource(data: PlayerTypes.PlayerData, resourceType: WorkerTypes.ResourceType, amount: number): boolean
-	local available = if resourceType == "Wood" then data.Wood elseif resourceType == "Stone" then data.Stone else data.Coal
+function EconomyService.RemoveResource(
+	data: PlayerTypes.PlayerData,
+	resourceType: WorkerTypes.ResourceType,
+	amount: number
+): boolean
+	local available = if resourceType == "Wood"
+		then data.Wood
+		elseif resourceType == "Stone" then data.Stone
+		else data.Coal
 
 	if amount < 0 or available < amount then
 		return false
@@ -89,33 +99,6 @@ function EconomyService.AddCoal(data: PlayerTypes.PlayerData, amount: number): n
 	return EconomyService.AddResource(data, "Coal", amount)
 end
 
-function EconomyService.CanProcessCoal(data: PlayerTypes.PlayerData): boolean
-	return data.Wood >= WorkerConfig.CoalRecipeWood and data.Stone >= WorkerConfig.CoalRecipeStone
-end
-
-function EconomyService.TakeCoalRecipe(data: PlayerTypes.PlayerData): boolean
-	if not EconomyService.CanProcessCoal(data) then
-		return false
-	end
-
-	data.Wood -= WorkerConfig.CoalRecipeWood
-	data.Stone -= WorkerConfig.CoalRecipeStone
-	return true
-end
-
-function EconomyService.ProcessCoal(data: PlayerTypes.PlayerData): boolean
-	if not EconomyService.TakeCoalRecipe(data) then
-		return false
-	end
-
-	data.Coal += 1
-	return true
-end
-
-function EconomyService.GetCoalRecipeText(): string
-	return `{WorkerConfig.CoalRecipeWood} Wood + {WorkerConfig.CoalRecipeStone} Stone`
-end
-
 function EconomyService.GetNPCCount(data: PlayerTypes.PlayerData, role: WorkerTypes.Role?): number
 	local count = 0
 
@@ -133,10 +116,12 @@ function EconomyService.HasNPC(data: PlayerTypes.PlayerData, role: WorkerTypes.R
 end
 
 function EconomyService.GetNPCPurchaseCost(data: PlayerTypes.PlayerData, role: WorkerTypes.Role): number
+	local WorkerConfig = require(ReplicatedStorage.Worker.Config)
 	return WorkerConfig.Roles[role].BaseCost * (EconomyService.GetNPCCount(data, role) + 1)
 end
 
 function EconomyService.GetNPCUpgradeCost(npc: WorkerTypes.NPCData, upgradeType: WorkerTypes.UpgradeType): number
+	local WorkerConfig = require(ReplicatedStorage.Worker.Config)
 	local level = if upgradeType == "Speed" then npc.SpeedLevel else npc.AmountLevel
 	return WorkerConfig.Roles[npc.Role].BaseCost * level
 end

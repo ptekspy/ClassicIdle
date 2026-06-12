@@ -13,9 +13,9 @@ local PlotConfig = require(ReplicatedStorage.Plot.Config)
 local PlotService = require(ReplicatedStorage.Services.PlotService)
 local RateLimit = require(ReplicatedStorage.Packages.RateLimit)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
-local ResourceDropService = require(ReplicatedStorage.Services.ResourceDropService)
 local ResourceNodeService = require(ReplicatedStorage.Services.ResourceNodeService)
 local UnlockService = require(ReplicatedStorage.Services.UnlockService)
+local MachineService = require(ReplicatedStorage.Services.MachineService)
 local WorkerConfig = require(ReplicatedStorage.Worker.Config)
 local WorkerService = require(ReplicatedStorage.Services.WorkerService)
 local WorkerTypes = require(ReplicatedStorage.Worker.Types)
@@ -99,7 +99,6 @@ end
 function WorldService.UpdateUnlocks(player: Player, plot: Model)
 	local data = DataService.Get(player)
 	local manualRock = getPlotPart(plot, PlotConfig.Paths.ManualRock)
-	local coalProcessor = getPlotPart(plot, PlotConfig.Paths.CoalProcessor)
 
 	if UnlockService.CanUseManualRock(data) then
 		manualRock.Color = Color3.fromRGB(100, 100, 100)
@@ -109,18 +108,17 @@ function WorldService.UpdateUnlocks(player: Player, plot: Model)
 		setInteractionText(plot, InteractionConfig.Definitions.ManualRock.TargetPath, "Locked", "Hire a Wood NPC first")
 	end
 
-	if UnlockService.CanUseCoalProcessor(data) then
-		coalProcessor.Transparency = 0
-		setInteractionText(plot, InteractionConfig.Definitions.CoalProcessor.TargetPath, "Process Coal", EconomyService.GetCoalRecipeText())
-	else
-		coalProcessor.Transparency = 0.55
-		setInteractionText(plot, InteractionConfig.Definitions.CoalProcessor.TargetPath, "Locked", "Hire a Stone NPC first")
-	end
-
+	MachineService.RefreshPresentation(player, plot)
 	DisplayService.UpdateAll(player, plot)
 end
 
-local function collectManual(player: Player, plot: Model, nodePath: string, resourceType: WorkerTypes.ResourceType, amount: number)
+local function collectManual(
+	player: Player,
+	plot: Model,
+	nodePath: string,
+	resourceType: WorkerTypes.ResourceType,
+	amount: number
+)
 	local data = DataService.TryGet(player)
 
 	if not data or EconomyService.IsStorageFull(data) then
@@ -172,7 +170,9 @@ function WorldService.SellResources(player: Player, plot: Model)
 		return
 	end
 
-	local totalEarned = EconomyService.SellAllWood(data) + EconomyService.SellAllStone(data) + EconomyService.SellAllCoal(data)
+	local totalEarned = EconomyService.SellAllWood(data)
+		+ EconomyService.SellAllStone(data)
+		+ EconomyService.SellAllCoal(data)
 
 	if totalEarned <= 0 then
 		FeedbackService.Send(player, "No resources to sell")
@@ -196,42 +196,12 @@ function WorldService.InteractStorageUpgradeButton(player: Player, plot: Model)
 	FeedbackService.Send(player, `Storage capacity upgraded to {EconomyService.GetStorageCapacity(data)}`)
 end
 
-function WorldService.InteractCoalProcessor(player: Player, plot: Model)
-	local data = DataService.TryGet(player)
-
-	if not data or not UnlockService.CanUseCoalProcessor(data) then
-		FeedbackService.Send(player, "Locked: Hire a Stone NPC first")
-		return
-	end
-
-	if not EconomyService.ProcessCoal(data) then
-		FeedbackService.Send(player, `Need {EconomyService.GetCoalRecipeText()}`)
-		return
-	end
-
-	local processor = getPlotPart(plot, PlotConfig.Paths.CoalProcessor)
-	local storageBin = getPlotPart(plot, PlotConfig.Paths.StorageDropTarget)
-	ResourceDropService.SpawnDrop({
-		Plot = plot,
-		ResourceType = "Coal",
-		Amount = 1,
-		StartPosition = processor.Position,
-		EndPosition = storageBin.Position,
-		OnCollected = function()
-			if PlotService.TryGet(player) == plot then
-				DisplayService.UpdateAll(player, plot)
-			end
-		end,
-	})
-	DisplayService.UpdateAll(player, plot)
-	FeedbackService.Send(player, "+1 Coal processed")
-end
-
 local function buyNPC(player: Player, role: WorkerTypes.Role)
 	local data = DataService.TryGet(player)
 	local plot = PlotService.TryGet(player)
 
-	if not data
+	if
+		not data
 		or not plot
 		or not WorkerConfig.Roles[role]
 		or not UnlockService.CanBuyNPCRole(data, role)
@@ -315,9 +285,6 @@ local interactionHandlers: { [string]: (Player, Model, Model) -> () } = {
 	[InteractionConfig.Definitions.StorageUpgradeButton.Id] = function(player, plot)
 		WorldService.InteractStorageUpgradeButton(player, plot)
 	end,
-	[InteractionConfig.Definitions.CoalProcessor.Id] = function(player, plot)
-		WorldService.InteractCoalProcessor(player, plot)
-	end,
 	[InteractionConfig.Definitions.NPCPurchasePad.Id] = function(player)
 		local data = DataService.TryGet(player)
 		if data then
@@ -331,6 +298,12 @@ local interactionHandlers: { [string]: (Player, Model, Model) -> () } = {
 		if npc then
 			workerMenuEvent:FireClient(player, getManageMenu(npc))
 		end
+	end,
+	BuyMachinePart = function(player, _, target)
+		MachineService.HandleInteraction(player, "BuyMachinePart", target)
+	end,
+	ManageMachinePart = function(player, _, target)
+		MachineService.HandleInteraction(player, "ManageMachinePart", target)
 	end,
 }
 
@@ -346,6 +319,7 @@ function WorldService.SetupPlayer(player: Player, plot: Model)
 	WorldService.CleanupPlayer(player)
 	ResourceNodeService.SetupPlot(plot)
 	WorkerService.SetupPlayer(player, plot)
+	MachineService.SetupPlayer(player, plot)
 
 	local maid = Maid.New(nil)
 	local touchPad = getPlotPart(plot, PlotConfig.Paths.SellTouchPad)
@@ -384,6 +358,7 @@ function WorldService.CleanupPlayer(player: Player)
 	end
 
 	WorkerService.CleanupPlayer(player)
+	MachineService.CleanupPlayer(player)
 	if plot then
 		ResourceNodeService.CleanupPlot(plot)
 	end
@@ -402,12 +377,13 @@ function WorldService.Start()
 			return
 		end
 
-		if action == "Buy" and (first == "Wood" or first == "Stone" or first == "CoalProcessor") then
+		if action == "Buy" and (first == "Wood" or first == "Stone") then
 			buyNPC(player, first)
 		elseif action == "Upgrade" and typeof(first) == "string" and (second == "Speed" or second == "Amount") then
 			upgradeNPC(player, first, second)
 		end
 	end)
+	MachineService.Start()
 end
 
 return WorldService

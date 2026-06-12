@@ -20,6 +20,31 @@ local Local = {
 
 local InteractionService = {}
 
+function InteractionService.RegisterTarget(
+	player: Player,
+	target: Model,
+	interactionId: string,
+	actionText: string,
+	objectText: string,
+	maxDistance: number?
+)
+	target:SetAttribute(InteractionConfig.Attributes.Id, interactionId)
+	target:SetAttribute(InteractionConfig.Attributes.ActionText, actionText)
+	target:SetAttribute(InteractionConfig.Attributes.ObjectText, objectText)
+	target:SetAttribute(InteractionConfig.Attributes.MaxDistance, maxDistance or 10)
+	target:SetAttribute(InteractionConfig.Attributes.OwnerUserId, player.UserId)
+	CollectionService:AddTag(target, InteractionConfig.Tag)
+end
+
+function InteractionService.UnregisterTarget(target: Model)
+	CollectionService:RemoveTag(target, InteractionConfig.Tag)
+	target:SetAttribute(InteractionConfig.Attributes.Id, nil)
+	target:SetAttribute(InteractionConfig.Attributes.ActionText, nil)
+	target:SetAttribute(InteractionConfig.Attributes.ObjectText, nil)
+	target:SetAttribute(InteractionConfig.Attributes.MaxDistance, nil)
+	target:SetAttribute(InteractionConfig.Attributes.OwnerUserId, nil)
+end
+
 local function isValidRequest(player: Player, target: Model): (boolean, string?, Model?)
 	if not target:IsDescendantOf(workspace) or not CollectionService:HasTag(target, InteractionConfig.Tag) then
 		return false
@@ -65,12 +90,14 @@ function InteractionService.RegisterPlot(player: Player, plot: Model)
 		getPlotPart(plot, definition.Path)
 		local target = getPlotModel(plot, definition.TargetPath)
 
-		target:SetAttribute(InteractionConfig.Attributes.Id, definition.Id)
-		target:SetAttribute(InteractionConfig.Attributes.ActionText, definition.ActionText)
-		target:SetAttribute(InteractionConfig.Attributes.ObjectText, definition.ObjectText)
-		target:SetAttribute(InteractionConfig.Attributes.MaxDistance, definition.MaxDistance)
-		target:SetAttribute(InteractionConfig.Attributes.OwnerUserId, player.UserId)
-		CollectionService:AddTag(target, InteractionConfig.Tag)
+		InteractionService.RegisterTarget(
+			player,
+			target,
+			definition.Id,
+			definition.ActionText,
+			definition.ObjectText,
+			definition.MaxDistance
+		)
 	end
 end
 

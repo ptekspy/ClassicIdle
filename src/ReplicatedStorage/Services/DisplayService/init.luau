@@ -3,7 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
-local UnlockService = require(script.Parent.UnlockService)
+local MachineConfig = require(ReplicatedStorage.Machine.Config)
 local PlotConfig = require(ReplicatedStorage.Plot.Config)
 local getPlotBillboardGui = require(ReplicatedStorage.Plot.getBillboardGui)
 local getPlotPart = require(ReplicatedStorage.Plot.getPart)
@@ -12,12 +12,7 @@ local getPlotTextLabel = require(ReplicatedStorage.Plot.getTextLabel)
 local Local = {}
 local DisplayService = {}
 
-function Local.createOrGetBillboard(
-	part: BasePart,
-	name: string,
-	size: UDim2,
-	offset: Vector3
-): BillboardGui
+function Local.createOrGetBillboard(part: BasePart, name: string, size: UDim2, offset: Vector3): BillboardGui
 	local existing = part:FindFirstChild(name)
 
 	if existing and existing:IsA("BillboardGui") then
@@ -67,7 +62,7 @@ function DisplayService.SetupLeaderstats(player: Player)
 	leaderstats.Name = "leaderstats"
 	leaderstats.Parent = player
 
-	local gold = Instance.new("IntValue")
+	local gold = Instance.new("NumberValue")
 	gold.Name = "Gold"
 	gold.Value = data.Gold
 	gold.Parent = leaderstats
@@ -82,7 +77,7 @@ function DisplayService.SetupLeaderstats(player: Player)
 	stone.Value = data.Stone
 	stone.Parent = leaderstats
 
-	local coal = Instance.new("IntValue")
+	local coal = Instance.new("NumberValue")
 	coal.Name = "Coal"
 	coal.Value = data.Coal
 	coal.Parent = leaderstats
@@ -101,7 +96,7 @@ function DisplayService.UpdateLeaderstats(player: Player)
 	local stone = leaderstats:FindFirstChild("Stone")
 	local coal = leaderstats:FindFirstChild("Coal")
 
-	if gold and gold:IsA("IntValue") then
+	if gold and gold:IsA("NumberValue") then
 		gold.Value = data.Gold
 	end
 
@@ -113,7 +108,7 @@ function DisplayService.UpdateLeaderstats(player: Player)
 		stone.Value = data.Stone
 	end
 
-	if coal and coal:IsA("IntValue") then
+	if coal and coal:IsA("NumberValue") then
 		coal.Value = data.Coal
 	end
 end
@@ -122,12 +117,8 @@ function DisplayService.UpdateStorageDisplay(player: Player, plot: Model)
 	local data = DataService.Get(player)
 	local storageBin = getPlotPart(plot, PlotConfig.Paths.StorageDisplayAnchor)
 
-	local gui = Local.createOrGetBillboard(
-		storageBin,
-		"StorageDisplay",
-		UDim2.fromOffset(170, 85),
-		Vector3.new(0, 3.5, 0)
-	)
+	local gui =
+		Local.createOrGetBillboard(storageBin, "StorageDisplay", UDim2.fromOffset(170, 85), Vector3.new(0, 3.5, 0))
 
 	local label = gui:FindFirstChild("Label")
 
@@ -154,12 +145,8 @@ function DisplayService.UpdateUpgradeButtonDisplays(player: Player, plot: Model)
 	local data = DataService.Get(player)
 	local storageButton = getPlotPart(plot, PlotConfig.Paths.StorageUpgradeButton)
 
-	local storageGui = Local.createOrGetBillboard(
-		storageButton,
-		"UpgradeDisplay",
-		UDim2.fromOffset(175, 75),
-		Vector3.new(0, 3.5, 0)
-	)
+	local storageGui =
+		Local.createOrGetBillboard(storageButton, "UpgradeDisplay", UDim2.fromOffset(175, 75), Vector3.new(0, 3.5, 0))
 
 	local storageLabel = storageGui:FindFirstChild("Label")
 
@@ -173,23 +160,36 @@ end
 
 function DisplayService.UpdateProcessorDisplays(player: Player, plot: Model)
 	local data = DataService.Get(player)
-	local coalProcessor = getPlotPart(plot, PlotConfig.Paths.CoalProcessor)
+	local coalProcessor = getPlotPart(plot, PlotConfig.Paths.CoalProcessorInteraction)
 
-	local gui = Local.createOrGetBillboard(
-		coalProcessor,
-		"ProcessorDisplay",
-		UDim2.fromOffset(185, 75),
-		Vector3.new(0, 3.5, 0)
-	)
+	local gui =
+		Local.createOrGetBillboard(coalProcessor, "ProcessorDisplay", UDim2.fromOffset(185, 75), Vector3.new(0, 3.5, 0))
 
 	local label = gui:FindFirstChild("Label")
+	gui.Enabled = data.Machine.Parts.CoalProcessor.Built
 
 	if label and label:IsA("TextLabel") then
-		if UnlockService.CanUseCoalProcessor(data) then
-			label.Text = `Coal Processor\n{EconomyService.GetCoalRecipeText()} → 1 Coal`
-		else
-			label.Text = "Coal Processor\nLocked\nHire Stone NPC First"
-		end
+		local processor = data.Machine.Processor
+		local status = if processor.IsProcessing
+			then `Processing: {math.ceil(processor.ProcessingRemaining)}s`
+			else `Buffer: {#processor.WoodBuffer}W/{#processor.StoneBuffer}S`
+		label.Text = `Coal Processor\n{status}\n2 Wood + 1 Stone`
+	end
+end
+
+function DisplayService.UpdateCollectionDisplay(player: Player, plot: Model)
+	local data = DataService.Get(player)
+	local collection = getPlotPart(plot, PlotConfig.Paths.CollectionPointInteraction)
+	local gui =
+		Local.createOrGetBillboard(collection, "CollectionDisplay", UDim2.fromOffset(185, 70), Vector3.new(0, 3.5, 0))
+	local label = gui:FindFirstChild("Label")
+	gui.Enabled = data.Machine.Parts.CollectionPoint.Built
+	if label and label:IsA("TextLabel") then
+		local level = data.Machine.Parts.CollectionPoint.Level
+		label.Text =
+			`Collection Point\nCoal: {math.round(data.Machine.CollectionStored * 100) / 100}/{MachineConfig.GetCollectionCapacity(
+				level
+			)}`
 	end
 end
 
@@ -213,6 +213,7 @@ function DisplayService.UpdateAll(player: Player, plot: Model)
 	DisplayService.UpdateMachineDisplays(player, plot)
 	DisplayService.UpdateUpgradeButtonDisplays(player, plot)
 	DisplayService.UpdateProcessorDisplays(player, plot)
+	DisplayService.UpdateCollectionDisplay(player, plot)
 	DisplayService.UpdateSellDisplay(player, plot)
 end
 

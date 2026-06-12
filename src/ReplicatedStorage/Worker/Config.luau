@@ -18,8 +18,6 @@ local Config = {
 	RetrySeconds = 1,
 	ActionSeconds = 1,
 	DepositRetrySeconds = 1,
-	CoalRecipeWood = 2,
-	CoalRecipeStone = 1,
 	Roles = {
 		Wood = {
 			DisplayName = "Wood NPC",
@@ -34,13 +32,6 @@ local Config = {
 			TemplateName = "Stone",
 			ActionAnimationId = "rbxassetid://522635514",
 			ResourceType = "Stone",
-		},
-		CoalProcessor = {
-			DisplayName = "Coal Processor NPC",
-			BaseCost = 100,
-			TemplateName = "CoalProcessor",
-			ActionAnimationId = "rbxassetid://522635514",
-			ResourceType = nil,
 		},
 	} :: { [Types.Role]: RoleDefinition },
 }

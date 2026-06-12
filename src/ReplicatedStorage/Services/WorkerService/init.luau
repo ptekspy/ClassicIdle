@@ -33,7 +33,12 @@ local Local = {
 
 local WorkerService = {}
 
-local function loadTrack(animator: Animator, animationId: string, looped: boolean, priority: Enum.AnimationPriority): AnimationTrack
+local function loadTrack(
+	animator: Animator,
+	animationId: string,
+	looped: boolean,
+	priority: Enum.AnimationPriority
+): AnimationTrack
 	local animation = Instance.new("Animation")
 	animation.AnimationId = animationId
 	local track = animator:LoadAnimation(animation)
@@ -93,7 +98,12 @@ local function moveToPosition(worker: RuntimeWorker, humanoid: Humanoid, target:
 	end)
 	local startedAt = os.clock()
 
-	while worker.Active and target.Parent and not completed and os.clock() - startedAt < WorkerConfig.MoveTimeoutSeconds do
+	while
+		worker.Active
+		and target.Parent
+		and not completed
+		and os.clock() - startedAt < WorkerConfig.MoveTimeoutSeconds
+	do
 		task.wait(0.1)
 	end
 
@@ -168,7 +178,8 @@ local function depositCargo(worker: RuntimeWorker): boolean
 			return false
 		end
 
-		local accepted = EconomyService.AddResource(data, worker.NPC.CargoType :: WorkerTypes.ResourceType, worker.NPC.CargoAmount)
+		local accepted =
+			EconomyService.AddResource(data, worker.NPC.CargoType :: WorkerTypes.ResourceType, worker.NPC.CargoAmount)
 		worker.NPC.CargoAmount -= accepted
 
 		if worker.NPC.CargoAmount <= 0 then
@@ -232,7 +243,9 @@ local function runResourceCycle(worker: RuntimeWorker)
 		return
 	end
 
-	local approachPath = if worker.NPC.Role == "Wood" then PlotConfig.Paths.TreeApproach else PlotConfig.Paths.RockApproach
+	local approachPath = if worker.NPC.Role == "Wood"
+		then PlotConfig.Paths.TreeApproach
+		else PlotConfig.Paths.RockApproach
 	local approach = getApproach(worker.Plot, approachPath)
 
 	if not approach or not moveTo(worker, approach) or not node.Parent then
@@ -251,71 +264,9 @@ local function runResourceCycle(worker: RuntimeWorker)
 	end
 end
 
-local function runCoalCycle(worker: RuntimeWorker)
-	local carryCapacity = EconomyService.GetNPCAmount(worker.NPC)
-
-	if worker.NPC.CargoAmount >= carryCapacity then
-		depositCargo(worker)
-		return
-	end
-
-	local data = DataService.TryGet(worker.Player)
-	local storage = getApproach(worker.Plot, PlotConfig.Paths.StorageApproach)
-	local processor = getApproach(worker.Plot, PlotConfig.Paths.CoalProcessorApproach)
-
-	if not data or not storage or not processor then
-		task.wait(WorkerConfig.RetrySeconds)
-		return
-	end
-
-	if EconomyService.IsStorageFull(data) then
-		if worker.NPC.CargoAmount > 0 then
-			depositCargo(worker)
-		else
-			waitForStorage(worker)
-		end
-		return
-	end
-
-	if not EconomyService.CanProcessCoal(data) then
-		if worker.NPC.CargoAmount > 0 then
-			depositCargo(worker)
-		else
-			setState(worker, "Idle")
-			task.wait(WorkerConfig.RetrySeconds)
-		end
-		return
-	end
-
-	-- Separate visible trips represent fetching Wood, then Stone. Ingredients are
-	-- consumed atomically at the processor so interrupted workers cannot lose them.
-	if not moveTo(worker, storage) or not moveTo(worker, processor) or not moveTo(worker, storage) or not moveTo(worker, processor) then
-		task.wait(WorkerConfig.RetrySeconds)
-		return
-	end
-
-	data = DataService.TryGet(worker.Player)
-
-	if not data or not EconomyService.TakeCoalRecipe(data) then
-		task.wait(WorkerConfig.RetrySeconds)
-		return
-	end
-
-	worker.NPC.CargoType = "Coal"
-	worker.NPC.CargoAmount += 1
-	playAction(worker)
-	setState(worker, "MovingToStorage")
-	DisplayService.UpdateAll(worker.Player, worker.Plot)
-end
-
 local function runWorker(worker: RuntimeWorker)
 	while worker.Active and worker.Model.Parent and worker.Plot.Parent and DataService.TryGet(worker.Player) do
-		if worker.NPC.Role == "CoalProcessor" then
-			runCoalCycle(worker)
-		else
-			runResourceCycle(worker)
-		end
-
+		runResourceCycle(worker)
 		task.wait(0.1)
 	end
 end
@@ -373,7 +324,12 @@ local function createWorker(player: Player, plot: Model, npc: WorkerTypes.NPCDat
 	local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
 	local worker: RuntimeWorker = {
 		Active = true,
-		ActionTrack = loadTrack(animator :: Animator, definition.ActionAnimationId, false, Enum.AnimationPriority.Action),
+		ActionTrack = loadTrack(
+			animator :: Animator,
+			definition.ActionAnimationId,
+			false,
+			Enum.AnimationPriority.Action
+		),
 		IdleTrack = loadTrack(animator :: Animator, WorkerConfig.IdleAnimationId, true, Enum.AnimationPriority.Idle),
 		Model = model,
 		NPC = npc,
@@ -437,7 +393,12 @@ function WorkerService.RefreshStats(player: Player, npcId: string)
 
 	if worker and humanoid then
 		humanoid.WalkSpeed = EconomyService.GetNPCSpeed(worker.NPC)
-		worker.Model:SetAttribute("InteractionObjectText", `{WorkerConfig.Roles[worker.NPC.Role].DisplayName} • Speed {humanoid.WalkSpeed} • Amount {EconomyService.GetNPCAmount(worker.NPC)}`)
+		worker.Model:SetAttribute(
+			"InteractionObjectText",
+			`{WorkerConfig.Roles[worker.NPC.Role].DisplayName} • Speed {humanoid.WalkSpeed} • Amount {EconomyService.GetNPCAmount(
+				worker.NPC
+			)}`
+		)
 	end
 end
 

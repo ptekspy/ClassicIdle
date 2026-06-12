@@ -16,7 +16,7 @@ function UnlockService.CanUseManualRock(data: PlayerTypes.PlayerData): boolean
 	return EconomyService.HasNPC(data, "Wood")
 end
 
-function UnlockService.CanUseCoalProcessor(data: PlayerTypes.PlayerData): boolean
+function UnlockService.CanUnlockConveyor1(data: PlayerTypes.PlayerData): boolean
 	return EconomyService.HasNPC(data, "Stone")
 end
 
@@ -29,9 +29,9 @@ function UnlockService.CanBuyNPCRole(data: PlayerTypes.PlayerData, role: WorkerT
 		return true
 	elseif role == "Stone" then
 		return EconomyService.HasNPC(data, "Wood")
-	else
-		return EconomyService.HasNPC(data, "Stone")
 	end
+
+	return false
 end
 
 return UnlockService

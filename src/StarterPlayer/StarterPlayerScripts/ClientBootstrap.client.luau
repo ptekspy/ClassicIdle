@@ -7,6 +7,7 @@ local TweenService = game:GetService("TweenService")
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
 local InteractionController = require(script.Parent.Controllers.InteractionController)
 local WorkerController = require(script.Parent.Controllers.WorkerController)
+local MachineController = require(script.Parent.Controllers.MachineController)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -52,15 +53,11 @@ local function showFeedback(message: string)
 
 	currentLabel = label
 
-	local showTween = TweenService:Create(
-		label,
-		TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{
-			BackgroundTransparency = 0.15,
-			Position = UDim2.fromScale(0.5, 0.82),
-			TextTransparency = 0,
-		}
-	)
+	local showTween = TweenService:Create(label, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 0.15,
+		Position = UDim2.fromScale(0.5, 0.82),
+		TextTransparency = 0,
+	})
 
 	showTween:Play()
 	showTween.Completed:Wait()
@@ -70,15 +67,11 @@ local function showFeedback(message: string)
 		return
 	end
 
-	local hideTween = TweenService:Create(
-		label,
-		TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{
-			BackgroundTransparency = 1,
-			Position = UDim2.fromScale(0.5, 0.77),
-			TextTransparency = 1,
-		}
-	)
+	local hideTween = TweenService:Create(label, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0.5, 0.77),
+		TextTransparency = 1,
+	})
 
 	hideTween:Play()
 	hideTween.Completed:Wait()
@@ -93,3 +86,4 @@ feedbackEvent.OnClientEvent:Connect(showFeedback)
 
 InteractionController.Start()
 WorkerController.Start()
+MachineController.Start()
