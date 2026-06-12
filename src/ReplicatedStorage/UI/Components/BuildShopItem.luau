@@ -2,26 +2,21 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Vendor.React)
+local Button = require(ReplicatedStorage.UI.Components.Button)
 
-local function BuildShopItem(props: {
+export type Props = {
 	text: string,
 	layoutOrder: number,
 	onActivated: () -> (),
-})
-	return React.createElement("TextButton", {
-		LayoutOrder = props.layoutOrder,
-		Size = UDim2.new(1, -16, 0, 56),
-		BackgroundColor3 = Color3.fromRGB(65, 130, 80),
-		Font = Enum.Font.GothamBold,
-		Text = props.text,
-		TextColor3 = Color3.new(1, 1, 1),
-		TextSize = 15,
-		TextWrapped = true,
-		[React.Event.Activated] = props.onActivated,
-	}, {
-		Corner = React.createElement("UICorner", {
-			CornerRadius = UDim.new(0, 8),
-		}),
+}
+
+local function BuildShopItem(props: Props)
+	return React.createElement(Button, {
+		text = props.text,
+		variant = "Primary",
+		size = UDim2.new(1, -16, 0, 56),
+		layoutOrder = props.layoutOrder,
+		onActivated = props.onActivated,
 	})
 end
 

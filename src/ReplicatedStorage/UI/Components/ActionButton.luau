@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Vendor.React)
+local Button = require(ReplicatedStorage.UI.Components.Button)
 
 export type Props = {
 	text: string,
@@ -15,22 +16,12 @@ export type Props = {
 local function ActionButton(props: Props)
 	local enabled = props.enabled ~= false
 
-	return React.createElement("TextButton", {
-		Size = UDim2.new(1, 0, 0, props.height or 64),
-		LayoutOrder = props.layoutOrder or 0,
-		BackgroundColor3 = if enabled then Color3.fromRGB(65, 130, 80) else Color3.fromRGB(65, 65, 65),
-		AutoButtonColor = enabled,
-		Font = Enum.Font.GothamBold,
-		Text = props.text,
-		TextColor3 = Color3.new(1, 1, 1),
-		TextSize = props.textSize or 18,
-		TextWrapped = true,
-		Active = enabled,
-		[React.Event.Activated] = if enabled then props.onActivated else nil,
-	}, {
-		Corner = React.createElement("UICorner", {
-			CornerRadius = UDim.new(0, 10),
-		}),
+	return React.createElement(Button, {
+		text = props.text,
+		variant = if enabled then "Primary" else "Disabled",
+		size = UDim2.new(1, 0, 0, props.height or 64),
+		layoutOrder = props.layoutOrder,
+		onActivated = if enabled then props.onActivated else nil,
 	})
 end
 
