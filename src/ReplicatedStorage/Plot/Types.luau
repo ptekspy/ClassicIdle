@@ -34,6 +34,7 @@ export type Paths = {
 	TreeApproach: string,
 	RockApproach: string,
 	StorageApproach: string,
+	CollectionPointApproach: string,
 	StorageDisplayAnchor: string,
 	StorageDropTarget: string,
 	PlayerSpawn: string,

@@ -7,7 +7,7 @@ local Types = require(script.Types)
 local DEFAULT_DATA = require(script.Default)
 
 local Local = {
-	STORE_NAME = "IdleGame_PlayerData_v7",
+	STORE_NAME = "IdleGame_PlayerData_v8",
 	profiles = {} :: { [Player]: Types.PlayerProfile },
 	states = {} :: { [Player]: Types.SessionState },
 }

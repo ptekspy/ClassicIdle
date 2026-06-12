@@ -8,6 +8,7 @@ local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
 local InteractionController = require(script.Parent.Controllers.InteractionController)
 local WorkerController = require(script.Parent.Controllers.WorkerController)
 local MachineController = require(script.Parent.Controllers.MachineController)
+local QuestController = require(script.Parent.Controllers.QuestController)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -87,3 +88,4 @@ feedbackEvent.OnClientEvent:Connect(showFeedback)
 InteractionController.Start()
 WorkerController.Start()
 MachineController.Start()
+QuestController.Start()

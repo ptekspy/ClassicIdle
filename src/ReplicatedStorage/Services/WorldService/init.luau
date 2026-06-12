@@ -11,6 +11,7 @@ local InteractionConfig = require(ReplicatedStorage.Interaction.Config)
 local Maid = require(ReplicatedStorage.Packages.Maid)
 local PlotConfig = require(ReplicatedStorage.Plot.Config)
 local PlotService = require(ReplicatedStorage.Services.PlotService)
+local QuestService = require(ReplicatedStorage.Services.QuestService)
 local RateLimit = require(ReplicatedStorage.Packages.RateLimit)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
 local ResourceNodeService = require(ReplicatedStorage.Services.ResourceNodeService)
@@ -136,6 +137,9 @@ local function collectManual(
 	end
 
 	local accepted = EconomyService.AddResource(data, resourceType, collected)
+	if accepted > 0 then
+		QuestService.Notify(player, `Manual{resourceType}Collected`, accepted)
+	end
 	DisplayService.UpdateAll(player, plot)
 	FeedbackService.Send(player, `+{accepted} {resourceType} stored`)
 end
@@ -170,6 +174,8 @@ function WorldService.SellResources(player: Player, plot: Model)
 		return
 	end
 
+	local woodBefore = data.Wood
+	local coalBefore = data.Coal
 	local totalEarned = EconomyService.SellAllWood(data)
 		+ EconomyService.SellAllStone(data)
 		+ EconomyService.SellAllCoal(data)
@@ -181,6 +187,13 @@ function WorldService.SellResources(player: Player, plot: Model)
 
 	DisplayService.UpdateAll(player, plot)
 	FeedbackService.Send(player, `Sold resources for {totalEarned} Gold`)
+	if woodBefore > 0 then
+		QuestService.Notify(player, "WoodSold", woodBefore)
+	end
+	if coalBefore > 0 then
+		QuestService.Notify(player, "CoalSold", coalBefore)
+	end
+	QuestService.Refresh(player)
 end
 
 function WorldService.InteractStorageUpgradeButton(player: Player, plot: Model)
@@ -194,6 +207,7 @@ function WorldService.InteractStorageUpgradeButton(player: Player, plot: Model)
 
 	DisplayService.UpdateAll(player, plot)
 	FeedbackService.Send(player, `Storage capacity upgraded to {EconomyService.GetStorageCapacity(data)}`)
+	QuestService.Refresh(player)
 end
 
 local function buyNPC(player: Player, role: WorkerTypes.Role)
@@ -243,6 +257,7 @@ local function buyNPC(player: Player, role: WorkerTypes.Role)
 	end
 
 	WorldService.UpdateUnlocks(player, plot)
+	QuestService.Refresh(player)
 	workerMenuEvent:FireClient(player, getPurchaseMenu(data))
 	FeedbackService.Send(player, `{WorkerConfig.Roles[role].DisplayName} hired`)
 end
@@ -271,6 +286,7 @@ local function upgradeNPC(player: Player, npcId: string, upgradeType: WorkerType
 	end
 
 	WorkerService.RefreshStats(player, npcId)
+	QuestService.Refresh(player)
 	DisplayService.UpdateAll(player, plot)
 	workerMenuEvent:FireClient(player, getManageMenu(npc))
 end
@@ -377,7 +393,7 @@ function WorldService.Start()
 			return
 		end
 
-		if action == "Buy" and (first == "Wood" or first == "Stone") then
+		if action == "Buy" and (first == "Wood" or first == "Stone" or first == "Coal") then
 			buyNPC(player, first)
 		elseif action == "Upgrade" and typeof(first) == "string" and (second == "Speed" or second == "Amount") then
 			upgradeNPC(player, first, second)

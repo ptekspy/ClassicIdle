@@ -29,6 +29,8 @@ function UnlockService.CanBuyNPCRole(data: PlayerTypes.PlayerData, role: WorkerT
 		return true
 	elseif role == "Stone" then
 		return EconomyService.HasNPC(data, "Wood")
+	elseif role == "Coal" then
+		return data.Machine.Parts.CollectionPoint.Built
 	end
 
 	return false

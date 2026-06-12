@@ -28,6 +28,7 @@ local function validate(plot: Model)
 			paths.TreeApproach,
 			paths.RockApproach,
 			paths.StorageApproach,
+			paths.CollectionPointApproach,
 			paths.StorageDisplayAnchor,
 			paths.StorageDropTarget,
 			paths.PlayerSpawn,

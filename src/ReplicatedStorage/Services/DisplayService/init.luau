@@ -81,6 +81,11 @@ function DisplayService.SetupLeaderstats(player: Player)
 	coal.Name = "Coal"
 	coal.Value = data.Coal
 	coal.Parent = leaderstats
+
+	local xp = Instance.new("IntValue")
+	xp.Name = "XP"
+	xp.Value = data.XP
+	xp.Parent = leaderstats
 end
 
 function DisplayService.UpdateLeaderstats(player: Player)
@@ -95,6 +100,7 @@ function DisplayService.UpdateLeaderstats(player: Player)
 	local wood = leaderstats:FindFirstChild("Wood")
 	local stone = leaderstats:FindFirstChild("Stone")
 	local coal = leaderstats:FindFirstChild("Coal")
+	local xp = leaderstats:FindFirstChild("XP")
 
 	if gold and gold:IsA("NumberValue") then
 		gold.Value = data.Gold
@@ -110,6 +116,10 @@ function DisplayService.UpdateLeaderstats(player: Player)
 
 	if coal and coal:IsA("NumberValue") then
 		coal.Value = data.Coal
+	end
+
+	if xp and xp:IsA("IntValue") then
+		xp.Value = data.XP
 	end
 end
 

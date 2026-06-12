@@ -8,7 +8,9 @@ local DataService = require(ReplicatedStorage.Services.DataService)
 local DisplayService = require(ReplicatedStorage.Services.DisplayService)
 local EconomyService = require(ReplicatedStorage.Services.EconomyService)
 local InteractionConfig = require(ReplicatedStorage.Interaction.Config)
+local MachineService = require(ReplicatedStorage.Services.MachineService)
 local PlotConfig = require(ReplicatedStorage.Plot.Config)
+local QuestService = require(ReplicatedStorage.Services.QuestService)
 local ResourceNodeService = require(ReplicatedStorage.Services.ResourceNodeService)
 local WorkerConfig = require(ReplicatedStorage.Worker.Config)
 local WorkerTypes = require(ReplicatedStorage.Worker.Types)
@@ -182,6 +184,10 @@ local function depositCargo(worker: RuntimeWorker): boolean
 			EconomyService.AddResource(data, worker.NPC.CargoType :: WorkerTypes.ResourceType, worker.NPC.CargoAmount)
 		worker.NPC.CargoAmount -= accepted
 
+		if accepted > 0 then
+			QuestService.Notify(worker.Player, `{worker.NPC.Role}NPCDeposited`, accepted)
+		end
+
 		if worker.NPC.CargoAmount <= 0 then
 			worker.NPC.CargoType = nil
 		end
@@ -206,6 +212,36 @@ local function waitForStorage(worker: RuntimeWorker)
 
 	setState(worker, "WaitingForStorageSpace")
 	task.wait(WorkerConfig.DepositRetrySeconds)
+end
+
+local function runCoalCycle(worker: RuntimeWorker)
+	if worker.NPC.CargoAmount > 0 then
+		depositCargo(worker)
+		return
+	end
+
+	local data = DataService.TryGet(worker.Player)
+	if not data or EconomyService.IsStorageFull(data) then
+		waitForStorage(worker)
+		return
+	end
+
+	local collectionPoint = getApproach(worker.Plot, PlotConfig.Paths.CollectionPointApproach)
+	if not collectionPoint or not moveTo(worker, collectionPoint) then
+		task.wait(WorkerConfig.RetrySeconds)
+		return
+	end
+
+	playAction(worker)
+	local withdrawn = MachineService.WithdrawCollection(worker.Player, EconomyService.GetNPCAmount(worker.NPC))
+	if withdrawn > 0 then
+		worker.NPC.CargoType = "Coal"
+		worker.NPC.CargoAmount = withdrawn
+		setState(worker, "MovingToStorage")
+	else
+		setState(worker, "FindingWork")
+		task.wait(WorkerConfig.RetrySeconds)
+	end
 end
 
 local function runResourceCycle(worker: RuntimeWorker)
@@ -266,7 +302,11 @@ end
 
 local function runWorker(worker: RuntimeWorker)
 	while worker.Active and worker.Model.Parent and worker.Plot.Parent and DataService.TryGet(worker.Player) do
-		runResourceCycle(worker)
+		if worker.NPC.Role == "Coal" then
+			runCoalCycle(worker)
+		else
+			runResourceCycle(worker)
+		end
 		task.wait(0.1)
 	end
 end

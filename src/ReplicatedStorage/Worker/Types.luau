@@ -1,6 +1,6 @@
 --!strict
 
-export type Role = "Wood" | "Stone"
+export type Role = "Wood" | "Stone" | "Coal"
 export type ResourceType = "Wood" | "Stone" | "Coal"
 export type UpgradeType = "Speed" | "Amount"
 

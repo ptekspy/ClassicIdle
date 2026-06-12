@@ -10,6 +10,7 @@ local DataService = require(Services:WaitForChild("DataService"))
 local DisplayService = require(Services:WaitForChild("DisplayService"))
 local InteractionService = require(Services:WaitForChild("InteractionService"))
 local PlotService = require(Services:WaitForChild("PlotService"))
+local QuestService = require(Services:WaitForChild("QuestService"))
 local WorldService = require(Services:WaitForChild("WorldService"))
 
 local function onPlayerAdded(player: Player)
@@ -28,6 +29,7 @@ local function onPlayerAdded(player: Player)
 	InteractionService.RegisterPlot(player, plot)
 	DisplayService.SetupLeaderstats(player)
 	WorldService.SetupPlayer(player, plot)
+	QuestService.SetupPlayer(player)
 	DisplayService.UpdateAll(player, plot)
 	WorldService.UpdateUnlocks(player, plot)
 	PlotService.SpawnCharacter(player)
@@ -41,6 +43,7 @@ end
 
 InteractionService.Start(WorldService.HandleInteraction)
 WorldService.Start()
+QuestService.Start()
 
 Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)

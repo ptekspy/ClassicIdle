@@ -1,5 +1,36 @@
 # MVP Conveyor Machine: Required Roblox Studio World Changes
 
+## Guided Quest And Coal Collector Addition
+
+The guided quest system reuses the existing plot objects for wayfinding. Its only
+additional authored world requirement is one invisible Coal NPC approach point.
+
+Under `ReplicatedStorage.Assets.PlotTemplate.WorkerApproachPoints`, create a
+standard `Part` named exactly `CollectionPoint` with:
+
+| Property | Required value |
+| --- | --- |
+| `Position` | `Vector3.new(5, 0.5, -26)` |
+| `Size` | `Vector3.new(1, 1, 1)` |
+| `Anchored` | `true` |
+| `CanCollide` | `false` |
+| `CanTouch` | `false` |
+| `CanQuery` | `false` |
+| `Transparency` | `1` |
+| `CastShadow` | `false` |
+
+This marker is where the Coal NPC stands while withdrawing Coal from the
+Collection Point. Keep the existing
+`ReplicatedStorage.Assets.WorkerTemplates.CoalProcessor` model; runtime code
+reuses it as the Coal NPC collector.
+
+Verification:
+
+- [ ] `ReplicatedStorage.Assets.PlotTemplate.WorkerApproachPoints.CollectionPoint` exists.
+- [ ] It is an invisible, anchored, non-colliding `Part`.
+- [ ] `ReplicatedStorage.Assets.WorkerTemplates.CoalProcessor` still exists.
+- [ ] No quest UI or quest marker instances were manually added.
+
 Complete every checklist item in this document inside Roblox Studio before asking Codex to implement the source-code phase.
 
 Do not rename objects differently from the names shown here. The source implementation will treat this hierarchy as a world contract.

@@ -33,6 +33,13 @@ local Config = {
 			ActionAnimationId = "rbxassetid://522635514",
 			ResourceType = "Stone",
 		},
+		Coal = {
+			DisplayName = "Coal NPC",
+			BaseCost = 500,
+			TemplateName = "CoalProcessor",
+			ActionAnimationId = "rbxassetid://522635514",
+			ResourceType = "Coal",
+		},
 	} :: { [Types.Role]: RoleDefinition },
 }
 

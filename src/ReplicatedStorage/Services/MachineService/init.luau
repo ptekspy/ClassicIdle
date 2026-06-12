@@ -12,6 +12,7 @@ local InteractionService = require(ReplicatedStorage.Services.InteractionService
 local MachineConfig = require(ReplicatedStorage.Machine.Config)
 local MachineTypes = require(ReplicatedStorage.Machine.Types)
 local PlotService = require(ReplicatedStorage.Services.PlotService)
+local QuestService = require(ReplicatedStorage.Services.QuestService)
 local RateLimit = require(ReplicatedStorage.Packages.RateLimit)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
 local UnlockService = require(ReplicatedStorage.Services.UnlockService)
@@ -393,6 +394,7 @@ local function updatePieces(runtime: RuntimeMachine, data: any, deltaTime: numbe
 			if data.Machine.CollectionStored + value <= capacity then
 				data.Machine.CollectionStored += value
 				destroyPiece(runtime, data, piece.Id)
+				QuestService.Notify(runtime.Player, "CoalReachedCollection", value)
 				MachineService.RefreshPresentation(runtime.Player, runtime.Plot)
 				DisplayService.UpdateAll(runtime.Player, runtime.Plot)
 			end
@@ -490,12 +492,29 @@ local function collect(player: Player)
 	end
 
 	local requested = math.min(data.Machine.CollectionStored, EconomyService.GetRemainingStorage(data))
-	local accepted = EconomyService.AddCoal(data, requested)
-	data.Machine.CollectionStored -= accepted
+	local withdrawn = MachineService.WithdrawCollection(player, requested)
+	local accepted = EconomyService.AddCoal(data, withdrawn)
 	MachineService.RefreshPresentation(player, plot)
 	DisplayService.UpdateAll(player, plot)
 	machineMenuEvent:FireClient(player, getMenu(data, "CollectionPoint"))
 	FeedbackService.Send(player, if accepted > 0 then `+{round(accepted)} Coal stored` else "Storage full")
+	if accepted > 0 then
+		QuestService.Notify(player, "CoalManuallyCollected", accepted)
+	end
+end
+
+function MachineService.WithdrawCollection(player: Player, requestedAmount: number): number
+	local data = DataService.TryGet(player)
+	local plot = PlotService.TryGet(player)
+	if not data or not plot or requestedAmount <= 0 then
+		return 0
+	end
+
+	local withdrawn = math.min(data.Machine.CollectionStored, requestedAmount)
+	data.Machine.CollectionStored -= withdrawn
+	MachineService.RefreshPresentation(player, plot)
+	DisplayService.UpdateAll(player, plot)
+	return withdrawn
 end
 
 function MachineService.HandleInteraction(player: Player, interactionId: string, target: Model)
@@ -524,6 +543,7 @@ function MachineService.HandleInteraction(player: Player, interactionId: string,
 			return
 		end
 		data.Machine.Parts[typedPartId].Built = true
+		QuestService.Refresh(player)
 		MachineService.RefreshPresentation(player, plot)
 		DisplayService.UpdateAll(player, plot)
 		FeedbackService.Send(player, `{definition.DisplayName} built`)
@@ -564,6 +584,7 @@ local function upgrade(player: Player, partId: MachineTypes.MachinePartId, upgra
 	else
 		data.Machine.Parts[partId].Level += 1
 	end
+	QuestService.Refresh(player)
 	MachineService.RefreshPresentation(player, plot)
 	DisplayService.UpdateAll(player, plot)
 	machineMenuEvent:FireClient(player, getMenu(data, partId))

@@ -7,8 +7,14 @@ local DEFAULT_DATA: Types.PlayerData = {
 	Wood = 0,
 	Stone = 0,
 	Coal = 0,
+	XP = 0,
 	StorageLevel = 1,
 	NPCs = {},
+	Quest = {
+		CurrentQuestId = "ManualWood1",
+		CompletedQuestIds = {},
+		CurrentProgress = 0,
+	},
 	Machine = {
 		Parts = {
 			Conveyor1 = { Built = false, Level = 1 },

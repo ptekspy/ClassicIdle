@@ -37,6 +37,7 @@ local Config = {
 		TreeApproach = "WorkerApproachPoints.Tree",
 		RockApproach = "WorkerApproachPoints.Rock",
 		StorageApproach = "WorkerApproachPoints.StorageBin",
+		CollectionPointApproach = "WorkerApproachPoints.CollectionPoint",
 		StorageDisplayAnchor = "StorageBin.Top",
 		StorageDropTarget = "StorageBin.Top",
 		PlayerSpawn = "PlayerSpawn",
