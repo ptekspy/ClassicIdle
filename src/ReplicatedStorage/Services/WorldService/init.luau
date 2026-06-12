@@ -14,9 +14,11 @@ local PlotService = require(ReplicatedStorage.Services.PlotService)
 local QuestService = require(ReplicatedStorage.Services.QuestService)
 local RateLimit = require(ReplicatedStorage.Packages.RateLimit)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
+local ResourceConfig = require(ReplicatedStorage.Resource.Config)
 local ResourceNodeService = require(ReplicatedStorage.Services.ResourceNodeService)
 local UnlockService = require(ReplicatedStorage.Services.UnlockService)
-local MachineService = require(ReplicatedStorage.Services.MachineService)
+local ConveyorService = require(ReplicatedStorage.Services.ConveyorService)
+local FactoryService = require(ReplicatedStorage.Services.FactoryService)
 local WorkerConfig = require(ReplicatedStorage.Worker.Config)
 local WorkerService = require(ReplicatedStorage.Services.WorkerService)
 local WorkerTypes = require(ReplicatedStorage.Worker.Types)
@@ -30,21 +32,12 @@ local workerRequestEvent = RemoteManager.WorkerRequest :: RemoteEvent
 local workerRateLimit = RateLimit.New(8)
 
 local Local = {
-	MANUAL_CHOP_AMOUNT = 1,
-	MANUAL_MINE_AMOUNT = 1,
-	chopCooldowns = {} :: { [Player]: number },
-	mineCooldowns = {} :: { [Player]: number },
+	resourceCooldowns = {} :: { [Player]: number },
 	maidsByPlayer = {} :: { [Player]: any },
 	started = false,
 }
 
 local WorldService = {}
-
-local function setInteractionText(plot: Model, targetPath: string, actionText: string, objectText: string)
-	local target = getPlotModel(plot, targetPath)
-	target:SetAttribute(InteractionConfig.Attributes.ActionText, actionText)
-	target:SetAttribute(InteractionConfig.Attributes.ObjectText, objectText)
-end
 
 local function getNPC(data: any, npcId: string): WorkerTypes.NPCData?
 	return data.NPCs[npcId]
@@ -98,28 +91,10 @@ local function getManageMenu(npc: WorkerTypes.NPCData)
 end
 
 function WorldService.UpdateUnlocks(player: Player, plot: Model)
-	local data = DataService.Get(player)
-	local manualRock = getPlotPart(plot, PlotConfig.Paths.ManualRock)
-
-	if UnlockService.CanUseManualRock(data) then
-		manualRock.Color = Color3.fromRGB(100, 100, 100)
-		setInteractionText(plot, InteractionConfig.Definitions.ManualRock.TargetPath, "Mine", "Rock")
-	else
-		manualRock.Color = Color3.fromRGB(45, 45, 45)
-		setInteractionText(plot, InteractionConfig.Definitions.ManualRock.TargetPath, "Locked", "Hire a Wood NPC first")
-	end
-
-	MachineService.RefreshPresentation(player, plot)
 	DisplayService.UpdateAll(player, plot)
 end
 
-local function collectManual(
-	player: Player,
-	plot: Model,
-	nodePath: string,
-	resourceType: WorkerTypes.ResourceType,
-	amount: number
-)
+function WorldService.CollectResourceNode(player: Player, plot: Model, node: Model)
 	local data = DataService.TryGet(player)
 
 	if not data or EconomyService.IsStorageFull(data) then
@@ -127,9 +102,22 @@ local function collectManual(
 		return
 	end
 
-	local node = getPlotModel(plot, nodePath)
+	local resourceType = ResourceNodeService.GetResourceType(node)
+	local definition = resourceType and ResourceConfig.Get(resourceType)
+	if not resourceType or not definition then
+		return
+	end
+	if not UnlockService.CanCollectResource(data, resourceType) then
+		FeedbackService.Send(player, "That resource is locked")
+		return
+	end
+	if not canUseCooldown(player, Local.resourceCooldowns, 0.5) then
+		return
+	end
+
+	local amount = definition.ManualCollection.Amount
 	local requested = math.min(amount, EconomyService.GetRemainingStorage(data))
-	local collected = ResourceNodeService.TryCollect(plot, node, requested)
+	local collected = ResourceNodeService.TryCollect(node, requested)
 
 	if collected <= 0 then
 		FeedbackService.Send(player, "Resource is respawning")
@@ -144,25 +132,6 @@ local function collectManual(
 	FeedbackService.Send(player, `+{accepted} {resourceType} stored`)
 end
 
-function WorldService.InteractManualTree(player: Player, plot: Model)
-	if canUseCooldown(player, Local.chopCooldowns, 0.5) then
-		collectManual(player, plot, PlotConfig.Paths.ManualTreeTarget, "Wood", Local.MANUAL_CHOP_AMOUNT)
-	end
-end
-
-function WorldService.InteractManualRock(player: Player, plot: Model)
-	local data = DataService.TryGet(player)
-
-	if not data or not UnlockService.CanUseManualRock(data) then
-		FeedbackService.Send(player, "Locked: Hire a Wood NPC first")
-		return
-	end
-
-	if canUseCooldown(player, Local.mineCooldowns, 0.5) then
-		collectManual(player, plot, PlotConfig.Paths.ManualRockTarget, "Stone", Local.MANUAL_MINE_AMOUNT)
-	end
-end
-
 function WorldService.SellResources(player: Player, plot: Model)
 	if PlotService.TryGet(player) ~= plot then
 		return
@@ -174,11 +143,7 @@ function WorldService.SellResources(player: Player, plot: Model)
 		return
 	end
 
-	local woodBefore = data.Wood
-	local coalBefore = data.Coal
-	local totalEarned = EconomyService.SellAllWood(data)
-		+ EconomyService.SellAllStone(data)
-		+ EconomyService.SellAllCoal(data)
+	local totalEarned, sold = EconomyService.SellAllResources(data)
 
 	if totalEarned <= 0 then
 		FeedbackService.Send(player, "No resources to sell")
@@ -187,11 +152,8 @@ function WorldService.SellResources(player: Player, plot: Model)
 
 	DisplayService.UpdateAll(player, plot)
 	FeedbackService.Send(player, `Sold resources for {totalEarned} Gold`)
-	if woodBefore > 0 then
-		QuestService.Notify(player, "WoodSold", woodBefore)
-	end
-	if coalBefore > 0 then
-		QuestService.Notify(player, "CoalSold", coalBefore)
+	for resourceType, amount in sold do
+		QuestService.Notify(player, `{resourceType}Sold`, amount)
 	end
 	QuestService.Refresh(player)
 end
@@ -292,11 +254,8 @@ local function upgradeNPC(player: Player, npcId: string, upgradeType: WorkerType
 end
 
 local interactionHandlers: { [string]: (Player, Model, Model) -> () } = {
-	[InteractionConfig.Definitions.ManualTree.Id] = function(player, plot)
-		WorldService.InteractManualTree(player, plot)
-	end,
-	[InteractionConfig.Definitions.ManualRock.Id] = function(player, plot)
-		WorldService.InteractManualRock(player, plot)
+	CollectResourceNode = function(player, plot, target)
+		WorldService.CollectResourceNode(player, plot, target)
 	end,
 	[InteractionConfig.Definitions.StorageUpgradeButton.Id] = function(player, plot)
 		WorldService.InteractStorageUpgradeButton(player, plot)
@@ -315,11 +274,8 @@ local interactionHandlers: { [string]: (Player, Model, Model) -> () } = {
 			workerMenuEvent:FireClient(player, getManageMenu(npc))
 		end
 	end,
-	BuyMachinePart = function(player, _, target)
-		MachineService.HandleInteraction(player, "BuyMachinePart", target)
-	end,
-	ManageMachinePart = function(player, _, target)
-		MachineService.HandleInteraction(player, "ManageMachinePart", target)
+	ManageFactoryItem = function(player, _, target)
+		FactoryService.HandleInteraction(player, target)
 	end,
 }
 
@@ -333,9 +289,9 @@ end
 
 function WorldService.SetupPlayer(player: Player, plot: Model)
 	WorldService.CleanupPlayer(player)
-	ResourceNodeService.SetupPlot(plot)
+	FactoryService.SetupPlayer(player, plot)
+	ConveyorService.SetupPlayer(player, plot)
 	WorkerService.SetupPlayer(player, plot)
-	MachineService.SetupPlayer(player, plot)
 
 	local maid = Maid.New(nil)
 	local touchPad = getPlotPart(plot, PlotConfig.Paths.SellTouchPad)
@@ -365,7 +321,6 @@ function WorldService.SetupPlayer(player: Player, plot: Model)
 end
 
 function WorldService.CleanupPlayer(player: Player)
-	local plot = PlotService.TryGet(player)
 	local maid = Local.maidsByPlayer[player]
 	Local.maidsByPlayer[player] = nil
 
@@ -374,12 +329,9 @@ function WorldService.CleanupPlayer(player: Player)
 	end
 
 	WorkerService.CleanupPlayer(player)
-	MachineService.CleanupPlayer(player)
-	if plot then
-		ResourceNodeService.CleanupPlot(plot)
-	end
-	Local.chopCooldowns[player] = nil
-	Local.mineCooldowns[player] = nil
+	ConveyorService.CleanupPlayer(player)
+	FactoryService.CleanupPlayer(player)
+	Local.resourceCooldowns[player] = nil
 end
 
 function WorldService.Start()
@@ -393,13 +345,13 @@ function WorldService.Start()
 			return
 		end
 
-		if action == "Buy" and (first == "Wood" or first == "Stone" or first == "Coal") then
+		if action == "Buy" and typeof(first) == "string" and WorkerConfig.Roles[first] then
 			buyNPC(player, first)
 		elseif action == "Upgrade" and typeof(first) == "string" and (second == "Speed" or second == "Amount") then
 			upgradeNPC(player, first, second)
 		end
 	end)
-	MachineService.Start()
+	FactoryService.Start()
 end
 
 return WorldService

@@ -3,12 +3,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PlayerTypes = require(ReplicatedStorage.Services.DataService.Types)
+local ResourceConfig = require(ReplicatedStorage.Resource.Config)
+local ResourceTypes = require(ReplicatedStorage.Resource.Types)
 local WorkerTypes = require(ReplicatedStorage.Worker.Types)
 
 local Local = {
-	WOOD_SELL_PRICE = 1,
-	STONE_SELL_PRICE = 3,
-	COAL_SELL_PRICE = 10,
 	BASE_STORAGE_CAPACITY = 25,
 	STORAGE_CAPACITY_PER_LEVEL = 25,
 	STORAGE_UPGRADE_BASE_COST = 50,
@@ -25,7 +24,11 @@ function EconomyService.GetStorageCapacity(data: PlayerTypes.PlayerData): number
 end
 
 function EconomyService.GetUsedStorage(data: PlayerTypes.PlayerData): number
-	return data.Wood + data.Stone + data.Coal
+	local total = 0
+	for _, amount in data.Resources do
+		total += math.max(0, amount)
+	end
+	return total
 end
 
 function EconomyService.GetRemainingStorage(data: PlayerTypes.PlayerData): number
@@ -42,47 +45,38 @@ end
 
 function EconomyService.AddResource(
 	data: PlayerTypes.PlayerData,
-	resourceType: WorkerTypes.ResourceType,
+	resourceType: ResourceTypes.ResourceId,
 	amount: number
 ): number
+	if not ResourceConfig.IsValid(resourceType) then
+		return 0
+	end
 	local acceptedAmount = EconomyService.GetAcceptedResourceAmount(data, amount)
 
 	if acceptedAmount <= 0 then
 		return 0
 	end
 
-	if resourceType == "Wood" then
-		data.Wood += acceptedAmount
-	elseif resourceType == "Stone" then
-		data.Stone += acceptedAmount
-	else
-		data.Coal += acceptedAmount
-	end
+	data.Resources[resourceType] = (data.Resources[resourceType] or 0) + acceptedAmount
 
 	return acceptedAmount
 end
 
 function EconomyService.RemoveResource(
 	data: PlayerTypes.PlayerData,
-	resourceType: WorkerTypes.ResourceType,
+	resourceType: ResourceTypes.ResourceId,
 	amount: number
 ): boolean
-	local available = if resourceType == "Wood"
-		then data.Wood
-		elseif resourceType == "Stone" then data.Stone
-		else data.Coal
+	if not ResourceConfig.IsValid(resourceType) then
+		return false
+	end
+	local available = data.Resources[resourceType] or 0
 
 	if amount < 0 or available < amount then
 		return false
 	end
 
-	if resourceType == "Wood" then
-		data.Wood -= amount
-	elseif resourceType == "Stone" then
-		data.Stone -= amount
-	else
-		data.Coal -= amount
-	end
+	data.Resources[resourceType] = available - amount
 
 	return true
 end
@@ -97,6 +91,10 @@ end
 
 function EconomyService.AddCoal(data: PlayerTypes.PlayerData, amount: number): number
 	return EconomyService.AddResource(data, "Coal", amount)
+end
+
+function EconomyService.GetResourceAmount(data: PlayerTypes.PlayerData, resourceType: ResourceTypes.ResourceId): number
+	return data.Resources[resourceType] or 0
 end
 
 function EconomyService.GetNPCCount(data: PlayerTypes.PlayerData, role: WorkerTypes.Role?): number
@@ -155,28 +153,50 @@ function EconomyService.BuyStorageUpgrade(data: PlayerTypes.PlayerData): boolean
 end
 
 function EconomyService.GetTotalSellValue(data: PlayerTypes.PlayerData): number
-	return data.Wood * Local.WOOD_SELL_PRICE + data.Stone * Local.STONE_SELL_PRICE + data.Coal * Local.COAL_SELL_PRICE
+	local total = 0
+	for resourceId, amount in data.Resources do
+		local definition = ResourceConfig.Get(resourceId)
+		if definition then
+			total += amount * definition.SellPrice
+		end
+	end
+	return total
+end
+
+function EconomyService.SellResource(data: PlayerTypes.PlayerData, resourceType: ResourceTypes.ResourceId): number
+	local definition = ResourceConfig.Get(resourceType)
+	if not definition then
+		return 0
+	end
+	local earned = (data.Resources[resourceType] or 0) * definition.SellPrice
+	data.Resources[resourceType] = 0
+	data.Gold += earned
+	return earned
+end
+
+function EconomyService.SellAllResources(data: PlayerTypes.PlayerData): (number, { [ResourceTypes.ResourceId]: number })
+	local total = 0
+	local sold = {} :: { [ResourceTypes.ResourceId]: number }
+	for _, resourceId in ResourceConfig.Order do
+		local amount = data.Resources[resourceId] or 0
+		if amount > 0 then
+			sold[resourceId] = amount
+			total += EconomyService.SellResource(data, resourceId)
+		end
+	end
+	return total, sold
 end
 
 function EconomyService.SellAllWood(data: PlayerTypes.PlayerData): number
-	local earned = data.Wood * Local.WOOD_SELL_PRICE
-	data.Wood = 0
-	data.Gold += earned
-	return earned
+	return EconomyService.SellResource(data, "Wood")
 end
 
 function EconomyService.SellAllStone(data: PlayerTypes.PlayerData): number
-	local earned = data.Stone * Local.STONE_SELL_PRICE
-	data.Stone = 0
-	data.Gold += earned
-	return earned
+	return EconomyService.SellResource(data, "Stone")
 end
 
 function EconomyService.SellAllCoal(data: PlayerTypes.PlayerData): number
-	local earned = data.Coal * Local.COAL_SELL_PRICE
-	data.Coal = 0
-	data.Gold += earned
-	return earned
+	return EconomyService.SellResource(data, "Coal")
 end
 
 return EconomyService

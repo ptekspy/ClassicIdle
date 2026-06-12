@@ -1,414 +1,881 @@
-I want you to implement a quest system for the current Roblox game, but this should be done as a plan-first workflow.
+I want you to help me implement a major system change in my Roblox game, but this time you are teaching me and guiding me step-by-step.
 
-Do not implement code immediately.
+Do not directly implement the code yourself.
 
-First inspect the existing repo, current world structure, NPC systems, resource systems, storage/bin systems, player data, UI patterns, and any existing wayfinding/path systems.
+Your job is to:
 
-Then produce a technical plan and wait for approval.
+* inspect the existing repo and world structure
+* understand the current systems
+* explain the correct architecture
+* tell me exactly what files to create or edit
+* give me the code to paste
+* explain where it goes
+* explain why each step matters
+* wait for me to confirm each step works before moving to the next step
+
+This should be an interactive teaching workflow, not an autonomous implementation workflow.
 
 # Goal
 
-Implement an early-game quest system that guides the player through the first progression loop.
+Convert the current premade conveyor machine system into a player-buildable grid-based factory builder.
 
-The quest system should:
+The machine should no longer be based on fixed Workspace paths or a premade conveyor chain.
 
-* Track quest progress.
-* Show the active quest to the player.
-* Provide a wayfinding path/marker showing where the player should go.
-* Give XP rewards when quests are completed.
-* Advance the player through quests in order.
-* Integrate with existing resource, gold, NPC, storage, and progression systems.
+Instead, each player plot should have a 4 stud x 4 stud build grid, and players should buy, equip, preview, rotate, place, move, and connect conveyor/factory pieces on their own plot.
 
-# Quest story / quest order
+The final direction is:
 
-Implement this early quest chain in order:
+Player buys piece -> piece goes into hotbar -> player equips piece -> build preview appears -> preview snaps to plot grid -> player rotates to valid direction -> player places piece -> server validates placement -> placed piece becomes part of the player’s conveyor graph.
 
-1. Collect 10 Wood
-2. Sell your Wood
-3. Hire 1 Wood NPC
-4. Wait for the Wood NPC to collect 5 Wood
-5. Have a total of 25 Gold
-6. Hire a Stone NPC
-7. Upgrade Storage Bin
-8. Hire the Coal NPC
-9. Collect a total of 50 Wood and 25 Stone
+# Current context
 
-# XP rewards
+The game currently has/had a premade conveyor-style system.
 
-Each quest should give the player an XP reward.
+This task replaces that direction with a buildable grid system.
 
-Rules:
+Player plots already exist.
 
-* Quest 1 should reward exactly 1 XP.
-* For the remaining quests, choose sensible XP values based on difficulty and progression impact.
-* Harder/later quests should generally reward more XP.
-* XP rewards should be defined in quest config/data, not hardcoded deep in quest logic.
-* Use the existing player XP/level system if one exists.
-* If there is no existing XP reward path, propose the smallest clean integration.
+The grid does not need to be physical. It can be a logical grid over the plot.
 
-# Quest requirements
+Grid cell size:
 
-Each quest should be config-driven where possible.
+* 4 studs x 4 studs
 
-Each quest definition should include:
+Every buildable piece should fit into this grid.
 
-* QuestId
-* Title
-* Description
-* Objective type
-* Required amount/value
-* XP reward
-* Wayfinding target
-* Any relevant metadata
+The plot should be divided into logical 4x4 cells based on plot origin, width, and height.
 
-Suggested quest IDs:
+Placed pieces should be saved as grid coordinates and rotation, not arbitrary world CFrames.
 
-* CollectWood10
-* SellWood
-* HireWoodNPC
-* WaitWoodNPCCollect5
-* Have25Gold
-* HireStoneNPC
-* UpgradeStorageBin
-* HireCoalNPC
-* CollectWood50Stone25
+# Critical workflow requirement
 
-Use the repo’s existing naming conventions if different.
+Do not implement everything in one go.
 
-# Quest completion details
+Teach me step-by-step.
 
-Quest 1: Collect 10 Wood
+Use small safe steps.
 
-* Complete when the player collects 10 Wood.
-* This should track newly collected Wood during the quest, not simply existing storage, unless the existing game design strongly suggests otherwise.
-* Reward: 1 XP.
-* Wayfinding should point to Wood resource nodes.
+After each step:
 
-Quest 2: Sell your Wood
+* explain what changed
+* tell me exactly where to put code
+* tell me how to test it in Roblox Studio
+* tell me what success should look like
+* wait for me to confirm before continuing
 
-* Complete when the player sells Wood.
-* Prefer completing on the first successful Wood sale.
-* Wayfinding should point to the sell area/shop/storage sell interaction.
+Do not continue to the next major step until I confirm the previous one works.
 
-Quest 3: Hire 1 Wood NPC
+# First task
 
-* Complete when the player purchases/hires their first Wood NPC.
-* Wayfinding should point to the Wood NPC purchase/hire location.
+Before giving code, inspect the repo and produce a detailed implementation plan.
 
-Quest 4: Wait for the Wood NPC to collect 5 Wood
+The plan should include:
 
-* Complete when Wood NPC collection deposits at least 5 Wood while this quest is active.
-* This should specifically be NPC-collected Wood, not manual Wood collection.
-* Wayfinding should point to the Wood NPC / storage / relevant area, depending on existing world layout.
+* current systems found
+* files/modules relevant to plot, inventory, placement, hotbar, remotes, data, NPCs, conveyors, resources, and storage
+* recommended architecture
+* implementation phases
+* what should be taught first
+* likely risks
+* what world/model changes are needed
 
-Quest 5: Have a total of 25 Gold
+Wait for my approval before starting step-by-step implementation.
 
-* Complete when the player’s Gold balance is at least 25.
-* If the player already has 25 Gold when this quest starts, it may complete immediately.
-* Wayfinding should point toward the best available activity to earn Gold, probably sell/storage area.
+# World changes requirement
 
-Quest 6: Hire a Stone NPC
+If any Roblox Studio world/model/template/part/tag/attribute changes are required, create or update WORLD_CHANGES.md immediately after the initial plan, then stop and wait for my confirmation before teaching implementation.
 
-* Complete when the player purchases/hires a Stone NPC.
-* Wayfinding should point to the Stone NPC purchase/hire location.
+`WORLD_CHANGES.md` must be ridiculously specific and actionable.
 
-Quest 7: Upgrade Storage Bin
+It should include:
 
-* Complete when the player upgrades the Storage Bin once.
-* Wayfinding should point to the Storage Bin upgrade interaction.
+* exact Workspace paths
+* exact Model names
+* exact Part names
+* exact Attachment names
+* exact CollectionService tags
+* exact Attributes
+* attribute names, types, and example values
+* required folder structure
+* required ReplicatedStorage template model locations
+* what objects I should create
+* what objects I should rename
+* what objects I should delete
+* what objects I must not delete yet
+* model scale expectations
+* pivot/origin expectations
+* verification checklist
 
-Quest 8: Hire the Coal NPC
+Wait for me to make those world changes and confirm before giving code that depends on them.
 
-* Complete when the player purchases/hires the Coal NPC.
-* Wayfinding should point to the Coal NPC purchase/hire location.
-* If the Coal NPC is being replaced later by the conveyor machine, do not solve that in this task unless the current game already uses that progression. For this quest task, integrate with the current available Coal NPC purchase flow.
+# Core design rule
 
-Quest 9: Collect a total of 50 Wood and 25 Stone
+This is a grid-based builder.
 
-* Complete when the player has collected a cumulative total of:
+Do not build this around fixed conveyor paths.
 
-  * 50 Wood
-  * 25 Stone
-* This should track collected totals during the quest, not necessarily current storage balance, unless existing systems make cumulative tracking impractical.
-* Wayfinding should point to whichever target is still incomplete:
+Do not build this around hardcoded Workspace paths for a single premade machine.
 
-  * Wood nodes if Wood progress is incomplete.
-  * Stone nodes if Wood is complete but Stone is incomplete.
-  * If both are incomplete, choose the lower percentage completion or whichever is more useful based on existing wayfinding patterns.
+The system should derive the factory from the player’s placed grid pieces.
 
-# Wayfinding requirements
+# Grid system
 
-Every active quest should provide a wayfinding path or marker showing the player where to go.
+Each player plot should have a logical 4 stud x 4 stud grid.
 
-Please inspect the repo for any existing:
+Requirements:
 
-* Wayfinding system
-* Arrow/path markers
-* Quest marker UI
-* Beam/path visuals
-* Target marker components
-* Settings such as `WayfindingEnabled`
+* Convert world position to grid coordinate.
+* Convert grid coordinate to world position.
+* Validate whether a cell is inside the plot.
+* Validate whether a footprint fits inside the plot.
+* Validate whether cells are occupied.
+* Support rotation in 90-degree increments.
+* Store placed items using grid coordinates and rotation.
+* Derive world CFrame from plot origin, grid coordinate, and rotation.
 
-If there is an existing wayfinding system, reuse it.
+Placed item data should conceptually look like:
 
-If there is no existing system, implement the smallest clean MVP:
+```lua
+{
+    Id = "unique placed item id",
+    ItemId = "StraightConveyor",
+    GridX = 4,
+    GridZ = 7,
+    Rotation = 90,
+    Config = {
+        ResourceType = "Wood",
+    },
+}
+```
 
-* Active quest has a world target.
-* Client shows a simple marker/path/arrow toward the target.
-* Wayfinding should update when quest changes.
-* Wayfinding should hide when the quest is complete.
-* Wayfinding should respect any existing setting such as `WayfindingEnabled` if present.
+Use the existing data style if the repo already has a preferred pattern.
 
-Wayfinding targets should be data-driven where possible.
+# Buildable pieces
 
-Possible target types:
+Implement the build system around config-driven buildable pieces.
 
-* ResourceType target, e.g. nearest Wood node.
-* Specific model/part target, e.g. Storage Bin.
-* NPC purchase target.
-* Shop/sell target.
-* Upgrade target.
+The first buildable pieces are:
 
-Do not hardcode fragile Workspace paths everywhere if there is a cleaner existing tag/attribute/config pattern.
+1. Conveyor Dropper
+2. Straight Conveyor
+3. Corner Conveyor
+4. Conveyor Upgrader
+5. Conveyor Collection Bin
+6. Worker Home
 
-Use CollectionService tags and/or attributes if that matches the project.
+Use the repo’s existing naming style if different.
 
-# Player data / persistence
+# Piece: Conveyor Dropper
 
-Quest progress should be persisted if the project already has persistent player data.
+Purpose:
 
-Please inspect existing player data shape and profile/store patterns.
+* Source/start piece for a conveyor chain.
+* Lets the player choose an unlocked resource from storage to drop into the conveyor system.
+* The selected resource should be changeable after placement.
+* It should visually include space for future worker automation.
 
-Quest data should likely include:
+Footprint:
 
-* CurrentQuestId
-* CompletedQuestIds
-* Per-quest progress values
-* Cumulative tracking where needed
+* 3 grid cells wide by 1 grid cell deep.
+* Local cell 1,1 = Worker home / worker automation area.
+* Local cell 2,1 = Dropper base.
+* Local cell 3,1 = Dropper output cell.
 
-Be careful with data migrations/versioning if the project has a DataVersion system.
+Important placement rule:
 
-Do not break existing player data.
+* The dropper reserves a 3x1 footprint.
+* The output connector is at local offset 3,1.
+* A Straight Conveyor should be allowed/required at the dropper output position depending on the current tutorial/progression step.
+* The Straight Conveyor is the only conveyor piece allowed to be placed directly under/at the dropper’s output position if that is how the model is laid out.
+* If the existing model layout makes “under” ambiguous, treat this as “the straight conveyor connects to the dropper’s output connector.”
 
-# Event integration
+Behaviour:
 
-The quest system should listen to existing server-side events/actions where possible, such as:
+* The dropper should be able to pull the selected resource from storage and create a visible conveyor piece item.
+* Server remains authoritative.
+* It should only drop resources the player has unlocked and has available in storage.
+* Resource type should be configurable after placement.
+* Automation worker support should be designed for later but does not need full NPC automation in the first version unless simple.
 
-* Resource collected
-* Resource sold
-* NPC hired
-* NPC deposited resources
-* Gold changed
-* Storage upgraded
+# Piece: Straight Conveyor
 
-Do not rely on client-only state for quest progress.
+Purpose:
 
-Quest progress should be server-authoritative.
+* Moves conveyor items in a straight line.
 
-Client can display quest state, but the server should decide completion and rewards.
+Footprint:
+
+* 1x1 grid cell.
+
+Requirements:
+
+* Must fit visually inside one 4x4 grid cell.
+* Has one input connector and one output connector.
+* Can be rotated in 90-degree steps.
+* Shows a visible arrow indicating travel direction.
+* Can be placed as the first conveyor connected to a dropper output.
+
+# Piece: Corner Conveyor
+
+Purpose:
+
+* Turns conveyor flow.
+
+Footprint:
+
+* 1x1 grid cell.
+
+Requirements:
+
+* One corner piece should support both left and right style turns through rotation/connector logic if possible.
+* Do not create separate left and right pieces unless the architecture strongly requires it.
+* Has one input connector and one output connector.
+* Rotation should determine the actual world input/output directions.
+* Shows a visible arrow indicating travel direction.
+
+Preferred connector definition:
+
+* Base orientation could be input South, output East.
+* Rotation transforms these directions.
+
+# Piece: Conveyor Upgrader
+
+Purpose:
+
+* Applies a multiplier to resources passing through it.
+
+Footprint:
+
+* Prefer 1x1 grid cell unless existing model/design requires otherwise.
+* It may be visually taller than a conveyor but should fit within the 4x4 cell footprint.
+
+Requirements:
+
+* Has one input connector and one output connector.
+* Acts like a straight conveyor for connection purposes.
+* Applies multiplier logic to passing items.
+* Multiplier should be upgradeable later.
+* Shows a visible arrow indicating travel direction.
+
+# Piece: Conveyor Collection Bin
+
+Purpose:
+
+* Endpoint for a conveyor chain.
+* Stores output from the conveyor until manually collected.
+* Later it can support an automation worker that takes end resources back into storage.
+
+Footprint:
+
+* Prefer 1x1 unless existing model/design requires otherwise.
+
+Requirements:
+
+* Has an input connector.
+* Stores received conveyor output.
+* Supports manual collection first.
+* Future automation support should be considered but not fully implemented unless simple.
+* Should visually include a worker-home/automation area or a clear place where automation will live later.
+
+# Piece: Worker Home
+
+Purpose:
+
+* A placeable home/slot for general NPCs such as Wood NPC or Stone NPC.
+* This is for general NPC workers, separate from conveyor dropper/collector built-in automation areas.
+
+Footprint:
+
+* 1x1 grid cell.
+
+Visual scale:
+
+* Should not fill the full 4x4 cell.
+* Around 3.5 studs x 3.5 studs is preferred.
+* Leave some visual padding inside the grid cell.
+
+# Important distinction: Worker Home vs automation space
+
+Do not make the entire system depend on every dropper/collector being a separate Worker Home item.
+
+There are two concepts:
+
+1. Standalone Worker Home
+
+* Used for general NPCs like Wood NPC or Stone NPC.
+
+2. Built-in automation space on Dropper/Collection Bin
+
+* Visual/design space reserved for future automation workers.
+* Belongs to that machine piece.
+* Should not necessarily be a separate placed Worker Home item.
+
+# Build shop / menu
+
+We need a menu to buy build pieces.
+
+Requirements:
+
+* Player can buy pieces from a build menu/shop.
+* Purchased pieces go into the player’s build inventory/hotbar.
+* Buying does not immediately place the item.
+* The hotbar shows owned unplaced pieces.
+* Equipping a hotbar piece enters build mode.
+* Placing the piece consumes one owned unplaced copy.
+* If a placed piece is picked up/deleted, decide whether it returns to inventory or enters move mode. For MVP, moving existing pieces should not duplicate or refund incorrectly.
+
+Initial pieces in shop:
+
+* Conveyor Dropper
+* Straight Conveyor
+* Corner Conveyor
+* Conveyor Upgrader
+* Conveyor Collection Bin
+* Worker Home
+
+If pricing already exists, integrate with it.
+If pricing does not exist, propose simple starter costs in config.
+
+# Hotbar behaviour
+
+After purchasing a piece:
+
+* Add it to build inventory.
+* Show it in the hotbar.
+* Equipping it enters build mode.
+* Build mode shows a ghost preview of the selected piece.
+* Hotbar count should decrease only after server confirms placement.
+* Hotbar should update if placement fails.
+
+# Build mode preview
+
+When a player equips a buildable piece:
+
+* Enter build mode.
+* Show a ghost model of the piece.
+* Snap preview to the plot grid.
+* Show valid placement in green.
+* Show invalid placement in red or another clear invalid state.
+* Allow rotation.
+* Only allow rotation to valid 90-degree snaps.
+* Placement should be cross-platform.
+
+Client preview is only a preview.
+Server must validate final placement.
+
+# Cross-platform controls
+
+Support mouse, touch, and gamepad.
+
+Mouse/keyboard:
+
+* Move ghost using mouse position/raycast.
+* Click to place.
+* Keyboard key such as R to rotate.
+* Escape or right click to cancel.
+
+Touch:
+
+* Tap/select grid cell to position preview.
+* Use on-screen Rotate button.
+* Use on-screen Confirm/Place button.
+* Use on-screen Cancel button.
+* Avoid accidental immediate placement from a single tap if possible.
+
+Gamepad:
+
+* Use crosshair/selection movement or grid cursor.
+* Use A / primary button to place.
+* Use B to cancel.
+* Use shoulder button, X, Y, or another suitable button to rotate.
+* Rotation controls should be discoverable in UI.
+
+If the repo has an existing input abstraction, use it.
+Otherwise implement a small clean input abstraction for build mode.
+
+# Server validation
+
+The server must validate all placement requests.
+
+Validate:
+
+* Player owns the plot.
+* Player owns the item being placed.
+* Item exists in build config.
+* Requested grid coordinate is inside the plot.
+* Requested rotation is allowed.
+* Footprint fits in plot.
+* Footprint does not overlap blocked/occupied cells.
+* Tutorial/progression permits this item to be placed.
+* Connection rules are satisfied when required.
+* The player has enough inventory count.
+* The model/template exists.
+* The resulting placed item can be created safely.
+
+Never trust client preview.
+
+# Occupancy and footprints
+
+Each buildable item should define its footprint in grid cells.
+
+Examples:
+
+* Straight Conveyor: 1x1
+* Corner Conveyor: 1x1
+* Conveyor Upgrader: 1x1
+* Conveyor Collection Bin: likely 1x1
+* Worker Home: 1x1
+* Conveyor Dropper: 3x1
+
+Placement should reserve all cells in the footprint.
+
+Rotation must rotate the footprint correctly.
+
+The system needs reusable helpers for:
+
+* rotated footprints
+* occupied cell lookup
+* bounds checking
+* world position conversion
+* cell-to-cell neighbour lookup
+
+# Connectors and conveyor graph
+
+Use connector definitions rather than relying on part names or `.Touched` alone.
+
+Each conveyor-capable piece should define:
+
+* input connectors
+* output connectors
+* connector local grid offsets if needed
+* connector direction
+* supported rotations
+
+Examples:
+
+Straight Conveyor:
+
+* Input South
+* Output North
+
+Corner Conveyor:
+
+* Input South
+* Output East
+
+Conveyor Upgrader:
+
+* Input South
+* Output North
+
+Conveyor Dropper:
+
+* Output at its output cell
+
+Collection Bin:
+
+* Input from one direction
+
+Rotation should transform connector directions.
+
+The conveyor system should resolve connections by grid adjacency.
+
+Connection example:
+
+* Piece A output points North.
+* The grid cell North of Piece A contains Piece B.
+* Piece B has an input connector pointing South.
+* Therefore the pieces are connected.
+
+This graph should drive resource flow.
+
+Do not build the new system around fixed Workspace paths.
+
+# Conveyor item simulation
+
+The conveyor flow should be derived from placed grid pieces.
+
+Requirements:
+
+* Dropper creates visible resource items.
+* Items move along connected conveyor graph.
+* Straight conveyor moves items forward.
+* Corner conveyor redirects items.
+* Upgrader modifies items.
+* Collection bin receives and stores items.
+* Server remains authoritative.
+* Visual items should exist in the world so players can see resources moving.
+* Avoid relying purely on `.Touched` as the source of truth.
+
+Each moving item should have logical state such as:
+
+* ResourceType
+* Amount
+* Multiplier
+* CurrentPieceId
+* ProgressAlongPiece
+
+Use existing resource/multiplier patterns if already present.
+
+# Conveyor arrows
+
+All conveyor models should have a visible arrow showing travel direction.
+
+Requirements:
+
+* Arrow should be visible on the model.
+* Arrow should rotate with the placed piece.
+* Arrow direction should match the piece’s output direction.
+* This applies to:
+
+  * Straight Conveyor
+  * Corner Conveyor
+  * Conveyor Upgrader
+  * Conveyor Dropper output direction if appropriate
+
+If model changes are needed, list them in `WORLD_CHANGES.md`.
+
+# Tutorial / first placement flow
+
+The first guided build should be:
+
+1. Player places a Conveyor Dropper first.
+2. Player places a Straight Conveyor connected to the dropper output.
+3. Player places a Collection Bin after the straight conveyor.
+4. Then the tutorial tells the player to move the Collection Bin.
+5. Player places a Conveyor Upgrader after the straight conveyor.
+6. Player places the Collection Bin after the Upgrader.
+
+This means the MVP must support:
+
+* placing a dropper first
+* enforcing or guiding straight conveyor connection
+* placing a collector
+* moving an already placed collector
+* placing an upgrader
+* placing collector after upgrader
+
+The tutorial/progression rules should prevent confusing placements during the first guided flow if that matches the existing quest system.
+
+# Moving existing pieces
+
+Because the tutorial requires moving the collector, the builder must support at least basic moving of placed pieces.
+
+MVP move behaviour:
+
+* Select an existing placed piece.
+* Enter move mode.
+* Show ghost preview at new grid location.
+* Validate new location.
+* Confirm move.
+* Server updates placed item grid coordinates/rotation.
+* No duplicate item is created.
+* Inventory count is not incorrectly changed.
+
+If full edit mode is too large, implement the smallest safe move support needed for the tutorial.
+
+# Resource selection for Dropper
+
+The Conveyor Dropper should allow the selected resource type to be changed after placement.
+
+Requirements:
+
+* Player can choose from unlocked resources in storage.
+* Initial supported resources likely include Wood and Stone.
+* Selection should be stored in the placed item Config.
+* Server validates selected resource is unlocked/allowed.
+* Dropper only emits the selected resource if storage has that resource.
+* UI can be simple for MVP.
+
+# Persistence
+
+Placed build pieces should persist.
+
+Player data should store:
+
+* build inventory / owned unplaced pieces
+* placed build items
+* item config such as selected dropper resource
+* rotation
+* grid coordinates
+* upgrades later if already implemented
+
+Use existing player data/ProfileStore/Replica patterns if present.
+
+Be careful with data versioning if the repo has DataVersion.
+
+# Plot expansion compatibility
+
+If player plot width/height already exists in player data, placement should respect it.
+
+The grid should be derived from current plot size.
+
+If plot expansion exists or is planned:
+
+* Do not hardcode permanent grid dimensions.
+* Use plot dimensions/config.
+* Placement should only be allowed inside unlocked plot area.
 
 # Architecture expectations
 
-Please inspect the repo and reuse existing systems where possible.
+Please inspect and reuse existing systems where possible.
 
-Look for existing:
+Look for:
 
+* Plot service
 * Player data service
 * Replica/ProfileStore usage
-* Resource service
-* Sell/storage service
-* NPC hire/purchase service
-* Storage bin upgrade service
-* UI state replication
-* Remote/event manager
-* Logger
+* Inventory/hotbar systems
+* UI framework
+* Resource/storage systems
+* Existing conveyor code
+* Existing collector/upgrader code
+* Existing remotes
+* Existing logger
 * CollectionService tag patterns
-* Wayfinding settings or systems
+* Existing model templates
+* Existing input handling
 
-Prefer a simple architecture such as:
+Prefer a clean architecture such as:
 
-* QuestConfig
+* BuildGridService_Server
 
-  * static quest definitions
-* QuestService_Server
+  * validates placement/movement
+  * owns placed item data
+  * spawns/despawns placed models
+  * maintains occupancy
+* BuildGridController_Client
 
-  * tracks progress
-  * listens to relevant gameplay events
-  * completes quests
-  * awards XP
-  * advances quest chain
-* QuestController_Client or existing UI integration
+  * build mode preview
+  * grid snapping
+  * input handling
+  * ghost model
+* BuildItemConfig
 
-  * displays active quest
-  * displays progress
-  * manages wayfinding target display
-* QuestTypes
+  * item definitions, footprint, connectors, templates, prices
+* ConveyorGraphService_Server
 
-  * shared strict types if the repo uses typed modules
+  * resolves conveyor graph from placed items
+  * simulates resource flow
+* BuildShopService_Server or integration with existing shop system
 
-Use the existing service/module/controller style.
+  * handles purchasing build pieces
+* BuildHotbar UI integration
 
-# Implementation workflow
+  * shows owned pieces and selected piece
+* Shared grid/connector utility module
 
-Phase 1: Inspect and plan
+  * coordinate conversion
+  * rotation helpers
+  * footprint helpers
+  * connector helpers
 
-* Inspect current codebase.
-* Identify existing player data, XP, resources, NPC, sell, storage, and wayfinding systems.
-* Identify where quest progress should hook into existing events.
-* Identify world targets needed for wayfinding.
-* Produce a plan only.
-* Wait for approval.
+Only create these exact modules if they fit the repo conventions.
+If the repo already has equivalent services/controllers, integrate there.
 
-Phase 2: After plan approval, create `WORLD_CHANGES.md` if needed
+# Teaching implementation phases
 
-* If any manual Roblox Studio world/model/part/attribute/tag changes are needed, create or update `WORLD_CHANGES.md`.
-* Be extremely specific.
-* Include exact Workspace paths, tags, attributes, part names, marker targets, and verification steps.
-* Wait for confirmation before implementing code if world changes are required.
+After the plan and any required world changes are approved, teach implementation in this order:
 
-Phase 3: Implement quest data/config
+Phase 1: Build item config
 
-* Add quest config for the 9 quests.
-* Add XP rewards.
-* Add objective definitions.
-* Add wayfinding target definitions.
+* Define buildable items.
+* Define footprints.
+* Define rotations.
+* Define connectors.
+* Define template paths.
+* Define prices if needed.
 
-Phase 4: Implement server quest tracking
+Phase 2: Grid utilities
 
-* Add quest state to player data.
-* Track progress server-side.
-* Listen to relevant gameplay actions/events.
-* Complete quests in order.
-* Award XP.
-* Advance to next quest.
+* Implement world-to-grid and grid-to-world conversion.
+* Implement rotated footprint calculation.
+* Implement bounds and occupancy helpers.
+* Test conversion with simple prints/debug.
 
-Phase 5: Implement client UI / wayfinding
+Phase 3: Server placement validation
 
-* Display active quest title/description/progress.
-* Show XP reward if appropriate.
-* Show wayfinding target/path/marker.
-* Update when quest progress changes.
-* Hide/complete quest UI when finished.
+* Add remote/event for placement requests.
+* Validate item ownership and grid placement.
+* Place a simple model on the server.
+* Save placed item data.
 
-Phase 6: Validate
+Phase 4: Client build preview
 
-* Test each quest in order.
-* Test persistence if supported.
-* Test rejoin mid-quest.
-* Test already-satisfied conditions.
-* Test wayfinding target updates.
+* Equip hotbar item.
+* Show ghost preview.
+* Snap to grid.
+* Rotate preview.
+* Show valid/invalid color.
+* Send placement request.
 
-# Non-goals for this task
+Phase 5: Build shop and hotbar
+
+* Purchase pieces.
+* Add to build inventory.
+* Show in hotbar.
+* Equip piece from hotbar.
+* Decrement only after successful placement.
+
+Phase 6: Move existing piece
+
+* Select placed collector.
+* Move it to new grid location.
+* Validate move on server.
+* Update model and saved data.
+
+Phase 7: Conveyor connectors and graph
+
+* Resolve connections between placed pieces.
+* Validate dropper -> conveyor -> collector chain.
+* Add arrows/visual direction if not already in model.
+
+Phase 8: Conveyor item movement MVP
+
+* Dropper emits selected resource from storage.
+* Item moves along graph.
+* Upgrader modifies multiplier.
+* Collection bin receives item.
+* Manual collection works.
+
+Phase 9: Tutorial restrictions
+
+* Enforce/guided flow:
+
+  * Dropper first
+  * Straight conveyor connected to output
+  * Collector
+  * Move collector
+  * Upgrader
+  * Collector after upgrader
+
+Phase 10: Persistence and cleanup
+
+* Ensure placed items reload.
+* Ensure inventory reloads.
+* Ensure ghost/move/build states reset correctly.
+* Validate after player rejoin.
+
+Each phase should be taught separately and wait for confirmation.
+
+# Non-goals for the first implementation
 
 Do not implement:
 
-* A full branching quest system.
-* Daily quests.
-* Quest dialogue.
-* Cutscenes.
-* Multiple quest chains.
-* Quest rewards other than XP unless existing design requires it.
-* A large generic achievement system.
-* Major unrelated UI rewrites.
-* Client-authoritative quest completion.
+* Full arbitrary factory networks with splitters/combiners.
+* Advanced pathfinding.
+* Multiplayer trading of build pieces.
+* Polished final UI.
+* Advanced model art.
+* Multiple floors.
+* Diagonal placement.
+* Non-90-degree rotation.
+* Large terrain/world generation.
+* Full worker automation for dropper/collector unless already easy.
+* Complex performance optimization before the MVP works.
+* A full drag-and-drop editor if simple click/tap placement is enough.
 
-# Edge cases to handle
+# Edge cases
 
-* Player already has enough Gold when “Have 25 Gold” starts.
-* Player already hired an NPC before the related quest starts.
-* Player rejoins mid-quest.
-* Player completes a requirement while UI is not loaded.
-* Resource nodes are missing.
-* Wayfinding target cannot be found.
-* Quest progress event fires multiple times.
-* XP reward should not be granted twice.
-* Completed quests should not be re-completed.
-* Player data is missing quest fields and needs defaults.
-* Player leaves during quest progress update.
-* The current quest references a world target that does not exist yet.
+Handle or design for:
+
+* Player tries to place outside plot.
+* Player tries to overlap pieces.
+* Player tries to place without owning item.
+* Player rotates to invalid orientation.
+* Player leaves while in build mode.
+* Client sends invalid grid coordinate.
+* Client sends invalid item id.
+* Model template missing.
+* Plot origin missing.
+* Plot size missing.
+* Existing placed item data is invalid.
+* Player tries to move collector onto occupied cells.
+* Player tries to delete/move a piece while conveyor items are active.
+* Dropper has no selected resource.
+* Dropper selected resource is no longer unlocked.
+* Storage does not have enough resource to drop.
+* Conveyor graph is incomplete.
+* Conveyor loop exists.
+* Collection bin is missing.
+* Collection bin is full.
+* Upgrader receives unsupported resource type.
+* Hotbar count desyncs.
+* Server rejects placement after client showed valid preview.
 
 # Code standards
 
 * Follow existing repo conventions.
-* Inspect nearby files before implementing.
+* Inspect nearby files before giving code.
 * Match existing naming, folder structure, module style, service/controller patterns, typing style, and logging style.
 * Keep code small, readable, and maintainable.
-* Prefer config-driven quest definitions.
-* Prefer explicit objective handlers over brittle string checks.
+* Teach using small increments.
+* Prefer strict typing where the repo already uses it.
 * Avoid broad rewrites.
 * Do not introduce new dependencies unless clearly necessary.
 * Do not change generated files.
 * Do not make unrelated formatting changes.
 * Preserve existing public APIs unless necessary.
-* Use strict typing where the repo already uses it.
 * Handle nil/invalid instances defensively.
 * Avoid duplicated logic.
 * Prefer shared helpers for:
 
-  * quest lookup
-  * quest progress updates
-  * objective completion checks
-  * XP reward application
-  * wayfinding target resolution
+  * grid coordinate conversion
+  * rotated footprints
+  * occupied cells
+  * connector transforms
+  * placement validation
+  * hotbar inventory updates
+  * conveyor graph resolution
 
-# Validation checklist
+# What your answers should look like
 
-Quest chain:
+Because you are teaching me, structure each implementation step like this:
 
-* New player starts at “Collect 10 Wood”.
-* Collecting Wood updates quest progress.
-* Collecting 10 Wood completes quest 1 and awards 1 XP.
-* Selling Wood completes quest 2.
-* Hiring Wood NPC completes quest 3.
-* Wood NPC depositing 5 Wood completes quest 4.
-* Having 25 Gold completes quest 5.
-* Hiring Stone NPC completes quest 6.
-* Upgrading Storage Bin completes quest 7.
-* Hiring Coal NPC completes quest 8.
-* Collecting total 50 Wood and 25 Stone completes quest 9.
+1. What we are building in this step
+2. Why this step exists
+3. Files to create/edit
+4. Exact code to paste
+5. Any Roblox Studio changes needed
+6. How to test it
+7. What success looks like
+8. Common errors to watch for
+9. Stop and wait for my confirmation
 
-Rewards:
+Do not dump 20 files at once.
 
-* XP is awarded once per quest.
-* Quest 1 gives exactly 1 XP.
-* Later quests give sensible XP values based on difficulty.
-* XP uses the existing player XP system.
+Do not skip explanations.
 
-Wayfinding:
+Do not assume I know where code goes.
 
-* Every quest shows a valid wayfinding target.
-* Wayfinding updates when the quest changes.
-* Wayfinding points to Wood nodes for Wood collection.
-* Wayfinding points to sell area for selling.
-* Wayfinding points to NPC hire areas for NPC quests.
-* Wayfinding points to Storage Bin upgrade area for storage upgrade.
-* Wayfinding handles missing targets gracefully.
-* Wayfinding hides or updates after quest completion.
+Do not continue to the next step until I confirm.
 
-Persistence:
+# Initial response required
 
-* Rejoining preserves current quest.
-* Rejoining preserves quest progress.
-* Completed quests do not reward XP again.
+Your first response should not contain implementation code.
 
-Safety:
+First response should:
 
-* Quest progress is server-authoritative.
-* Client cannot spoof quest completion.
-* Repeated gameplay events do not double-complete quests.
-* Missing or invalid data does not crash the game.
+* Summarise what you found in the repo.
+* Identify the current systems that matter.
+* Propose the architecture.
+* Propose the teaching phases.
+* Identify required world/model/template changes.
+* Identify any assumptions.
+* Ask only genuinely blocking questions.
 
-# Final response after implementation
+Then follow this rule:
 
-When finished, summarise:
+If world/model/template changes are needed:
 
-* What changed.
-* Main files touched.
-* How the quest system works.
-* How quest progress is tracked.
-* How XP rewards are assigned.
-* How wayfinding targets are resolved.
-* Any world changes required.
-* Any assumptions made.
-* What validation was run.
-* Any follow-up recommendations.
+* Create or update `WORLD_CHANGES.md`.
+* Make it extremely specific and checklist-driven.
+* Stop and wait for me to make those changes and confirm.
+
+If no world/model/template changes are needed:
+
+* Do not create `WORLD_CHANGES.md`.
+* Stop and wait for me to confirm that you should continue to the first teaching implementation step.
+
+Do not start implementation code in the initial response.
+Do not continue until I explicitly confirm.

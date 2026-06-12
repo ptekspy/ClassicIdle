@@ -1,7 +1,12 @@
 --!strict
 
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local ResourceConfig = require(ReplicatedStorage.Resource.Config)
+local PlotConfig = require(ReplicatedStorage.Plot.Config)
 local Types = require(script.Types)
+local resolve = require(ReplicatedStorage.Plot.resolve)
 
 local Local = {
 	DROP_TRAVEL_SECONDS = 1.2,
@@ -10,7 +15,7 @@ local Local = {
 local ResourceDropService = {}
 
 function Local.getDropsFolder(plot: Model): Folder
-	local drops = plot:FindFirstChild("Drops")
+	local drops = resolve(plot, PlotConfig.Paths.Drops)
 
 	if drops and drops:IsA("Folder") then
 		return drops
@@ -18,21 +23,19 @@ function Local.getDropsFolder(plot: Model): Folder
 
 	local newDrops = Instance.new("Folder")
 	newDrops.Name = "Drops"
-	newDrops.Parent = plot
+	local old = plot:FindFirstChild("OLD")
+	newDrops.Parent = old or plot
 
 	return newDrops
 end
 
 function Local.getDropAppearance(resourceType: Types.ResourceType): (Vector3, Color3, Enum.Material)
-	if resourceType == "Wood" then
-		return Vector3.new(1.6, 0.8, 1), Color3.fromRGB(120, 72, 35), Enum.Material.Wood
+	local definition = ResourceConfig.Get(resourceType)
+	local appearance = definition and definition.DropAppearance
+	if appearance then
+		return appearance.Size, appearance.Color, appearance.Material
 	end
-
-	if resourceType == "Stone" then
-		return Vector3.new(1.2, 1.2, 1.2), Color3.fromRGB(100, 100, 100), Enum.Material.Slate
-	end
-
-	return Vector3.new(1.1, 1.1, 1.1), Color3.fromRGB(20, 20, 20), Enum.Material.Basalt
+	return Vector3.one, Color3.fromRGB(255, 0, 255), Enum.Material.SmoothPlastic
 end
 
 function ResourceDropService.SpawnDrop(options: Types.SpawnDropOptions)

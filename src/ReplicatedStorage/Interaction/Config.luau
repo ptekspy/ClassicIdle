@@ -11,24 +11,13 @@ local Config = {
 		ObjectText = "InteractionObjectText",
 		MaxDistance = "InteractionMaxDistance",
 		OwnerUserId = "InteractionOwnerUserId",
+		Scope = "InteractionScope",
+	},
+	Scopes = {
+		OwnedPlot = "OwnedPlot",
+		Shared = "Shared",
 	},
 	Definitions = {
-		ManualTree = {
-			Id = "ManualTree",
-			Path = PlotConfig.Paths.ManualTree,
-			TargetPath = PlotConfig.Paths.ManualTreeTarget,
-			ActionText = "Chop",
-			ObjectText = "Tree",
-			MaxDistance = 10,
-		},
-		ManualRock = {
-			Id = "ManualRock",
-			Path = PlotConfig.Paths.ManualRock,
-			TargetPath = PlotConfig.Paths.ManualRockTarget,
-			ActionText = "Mine",
-			ObjectText = "Rock",
-			MaxDistance = 10,
-		},
 		NPCPurchasePad = {
 			Id = "OpenNPCPurchaseMenu",
 			Path = PlotConfig.Paths.NPCPurchasePad,

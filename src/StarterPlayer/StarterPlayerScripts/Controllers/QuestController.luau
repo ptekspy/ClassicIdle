@@ -1,10 +1,13 @@
 --!strict
 
 local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local PlotConfig = require(ReplicatedStorage.Plot.Config)
+local ResourceCatalog = require(ReplicatedStorage.Resource.Config)
+local ResourceConfig = require(ReplicatedStorage.ResourceNode.Config)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
 
 local player = Players.LocalPlayer
@@ -24,16 +27,17 @@ local QuestController = {}
 
 local objectiveCosts = {
 	HireWoodNPC = 10,
+	BuildStoneWorkerHome = 50,
 	UpgradeWoodNPC = 10,
 	HireStoneNPC = 25,
 	UpgradeStorage = 50,
 	BuildConveyor1 = 100,
-	BuildUpgrader1 = 150,
-	BuildCoalProcessor = 250,
-	BuildConveyor2 = 200,
-	BuildUpgrader2 = 300,
-	BuildCollectionPoint = 400,
-	UpgradeConveyor1 = 100,
+	BuildUpgrader1 = 25,
+	BuildCoalProcessor = 100,
+	BuildConveyor2 = 0,
+	BuildUpgrader2 = 150,
+	BuildCollectionPoint = 0,
+	UpgradeConveyor1 = 50,
 	HireCoalNPC = 500,
 }
 
@@ -173,13 +177,43 @@ end
 local function resolveEarningTarget(plot: Model, leaderstats: Instance?): Instance?
 	local hasResources = false
 	if leaderstats then
-		for _, resourceName in { "Wood", "Stone", "Coal" } do
+		for _, resourceName in ResourceCatalog.Order do
 			local value = leaderstats:FindFirstChild(resourceName)
 			hasResources = hasResources
 				or (value and (value:IsA("IntValue") or value:IsA("NumberValue")) and value.Value > 0) == true
 		end
 	end
-	return resolvePath(plot, if hasResources then PlotConfig.Paths.SellTouchPad else PlotConfig.Paths.ManualTreeTarget)
+	return if hasResources then resolvePath(plot, PlotConfig.Paths.SellTouchPad) else nil
+end
+
+local function resolveResourceTarget(resourceType: string): Model?
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local best: Model?
+	local bestDistance = math.huge
+	for _, instance in CollectionService:GetTagged(ResourceConfig.Tags.Node) do
+		if
+			not instance:IsA("Model")
+			or instance:GetAttribute(ResourceConfig.Attributes.ResourceType) ~= resourceType
+			or instance:GetAttribute(ResourceConfig.Attributes.IsDepleted) == true
+			or instance:GetAttribute(ResourceConfig.Attributes.IsDisabled) == true
+			or (
+				(instance:GetAttribute(ResourceConfig.Attributes.AvailableAmount) or 0)
+				- (instance:GetAttribute(ResourceConfig.Attributes.ReservedAmount) or 0)
+				<= 0
+			)
+		then
+			continue
+		end
+		local distance = if root and root:IsA("BasePart")
+			then (instance:GetPivot().Position - root.Position).Magnitude
+			else 0
+		if distance < bestDistance then
+			bestDistance = distance
+			best = instance
+		end
+	end
+	return best
 end
 
 local function getTargetPart(target: Instance?): BasePart?
@@ -204,26 +238,39 @@ local function resolveTarget(): Instance?
 	local gold = leaderstats and leaderstats:FindFirstChild("Gold")
 	local objectiveCost = objectiveCosts[state.QuestId]
 	if objectiveCost and gold and gold:IsA("NumberValue") and gold.Value < objectiveCost then
-		return resolveEarningTarget(plot, leaderstats)
+		return resolveEarningTarget(plot, leaderstats) or resolveResourceTarget("Wood")
 	end
 
 	if state.QuestId == "ProduceCoal" and leaderstats then
 		local wood = leaderstats:FindFirstChild("Wood")
 		local stone = leaderstats:FindFirstChild("Stone")
-		if wood and wood:IsA("IntValue") and wood.Value < 2 then
-			return resolvePath(plot, PlotConfig.Paths.ManualTreeTarget)
-		elseif stone and stone:IsA("IntValue") and stone.Value < 1 then
-			return resolvePath(plot, PlotConfig.Paths.ManualRockTarget)
+		if wood and (wood:IsA("IntValue") or wood:IsA("NumberValue")) and wood.Value < 2 then
+			return resolveResourceTarget("Wood")
+		elseif stone and (stone:IsA("IntValue") or stone:IsA("NumberValue")) and stone.Value < 1 then
+			return resolveResourceTarget("Stone")
 		end
 	end
 
 	if state.WayfindingType == "Earning" then
-		return resolveEarningTarget(plot, leaderstats)
+		return resolveEarningTarget(plot, leaderstats) or resolveResourceTarget("Wood")
+	elseif state.WayfindingType == "ResourceType" then
+		return resolveResourceTarget(state.WayfindingValue)
 	elseif state.WayfindingType == "PlotPath" then
 		local path = PlotConfig.Paths[state.WayfindingValue]
 		return if path then resolvePath(plot, path) else nil
 	elseif state.WayfindingType == "MachinePart" then
 		return resolvePath(plot, `Machine.{state.WayfindingValue}`)
+	elseif state.WayfindingType == "FactoryItem" then
+		local grid = plot:FindFirstChild("BuildGrid")
+		local placed = grid and grid:FindFirstChild("PlacedItems")
+		if placed then
+			for _, model in placed:GetChildren() do
+				if model:IsA("Model") and model:GetAttribute("BuildItemId") == state.WayfindingValue then
+					return model
+				end
+			end
+		end
+		return resolvePath(plot, "BuildGrid.Bounds")
 	elseif state.WayfindingType == "WorkerRole" then
 		local workers = plot:FindFirstChild("Workers")
 		if workers then

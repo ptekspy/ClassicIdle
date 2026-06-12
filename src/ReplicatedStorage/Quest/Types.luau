@@ -2,7 +2,7 @@
 
 export type QuestId = string
 export type ObjectiveType = "Event" | "State"
-export type WayfindingType = "PlotPath" | "WorkerRole" | "MachinePart" | "Earning"
+export type WayfindingType = "PlotPath" | "WorkerRole" | "MachinePart" | "FactoryItem" | "Earning" | "ResourceType"
 
 export type QuestDefinition = {
 	QuestId: QuestId,

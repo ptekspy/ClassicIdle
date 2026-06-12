@@ -8,6 +8,7 @@ local EconomyService = require(ReplicatedStorage.Services.EconomyService)
 local QuestConfig = require(ReplicatedStorage.Quest.Config)
 local QuestTypes = require(ReplicatedStorage.Quest.Types)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
+local ResourceConfig = require(ReplicatedStorage.Resource.Config)
 
 local questUpdateEvent = RemoteManager.QuestUpdate :: RemoteEvent
 local getQuestStateFunction = RemoteManager.GetQuestState :: RemoteFunction
@@ -19,8 +20,8 @@ local Local = {
 local QuestService = {}
 
 local function getStateProgress(data: any, objective: string): number
-	if objective == "Wood" then
-		return data.Wood
+	if ResourceConfig.IsValid(objective) then
+		return EconomyService.GetResourceAmount(data, objective)
 	elseif objective == "Gold" then
 		return data.Gold
 	elseif objective == "StorageLevel" then
@@ -41,14 +42,34 @@ local function getStateProgress(data: any, objective: string): number
 		return highest
 	end
 
+	local resourceId = string.match(objective, "^Resource:(.+)$")
+	if resourceId and ResourceConfig.IsValid(resourceId) then
+		return EconomyService.GetResourceAmount(data, resourceId)
+	end
+	local npcRole = string.match(objective, "^NPCCount:(.+)$")
+	if npcRole then
+		return EconomyService.GetNPCCount(data, npcRole)
+	end
+
 	local machinePart = string.match(objective, "^MachinePart:(.+)$")
-	if machinePart and data.Machine.Parts[machinePart] then
+	if machinePart and data.Machine and data.Machine.Parts[machinePart] then
 		return if data.Machine.Parts[machinePart].Built then 1 else 0
 	end
 
 	local machineLevel = string.match(objective, "^MachineLevel:(.+)$")
-	if machineLevel and data.Machine.Parts[machineLevel] then
+	if machineLevel and data.Machine and data.Machine.Parts[machineLevel] then
 		return data.Machine.Parts[machineLevel].Level
+	end
+
+	local factoryItem = string.match(objective, "^FactoryPlaced:(.+)$")
+	if factoryItem then
+		local count = 0
+		for _, item in data.Factory.PlacedItems do
+			if item.ItemId == factoryItem then
+				count += 1
+			end
+		end
+		return count
 	end
 
 	return 0

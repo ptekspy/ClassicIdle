@@ -1,12 +1,19 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local ResourceConfig = require(ReplicatedStorage.Resource.Config)
 local Types = require(script.Parent.Types)
 
+local resources = {}
+for _, resourceId in ResourceConfig.Order do
+	resources[resourceId] = 0
+end
+
 local DEFAULT_DATA: Types.PlayerData = {
+	DataVersion = 1,
 	Gold = 0,
-	Wood = 0,
-	Stone = 0,
-	Coal = 0,
+	Resources = resources,
 	XP = 0,
 	StorageLevel = 1,
 	NPCs = {},
@@ -15,27 +22,11 @@ local DEFAULT_DATA: Types.PlayerData = {
 		CompletedQuestIds = {},
 		CurrentProgress = 0,
 	},
-	Machine = {
-		Parts = {
-			Conveyor1 = { Built = false, Level = 1 },
-			Upgrader1 = { Built = false, Level = 1 },
-			CoalProcessor = { Built = false, Level = 1 },
-			Conveyor2 = { Built = false, Level = 1 },
-			Upgrader2 = { Built = false, Level = 1 },
-			CollectionPoint = { Built = false, Level = 1 },
+	Factory = {
+		Inventory = {
+			WorkerHome = 1,
 		},
-		Pieces = {},
-		Processor = {
-			WoodBuffer = {},
-			StoneBuffer = {},
-			IsProcessing = false,
-			ProcessingRemaining = 0,
-			PendingOutputMultiplier = 0,
-			ProcessingTimeLevel = 1,
-			OutputMultiplierLevel = 1,
-		},
-		CollectionStored = 0,
-		DispatchRemaining = 0,
+		PlacedItems = {},
 	},
 }
 

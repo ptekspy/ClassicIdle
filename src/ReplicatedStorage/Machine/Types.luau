@@ -1,10 +1,12 @@
 --!strict
 
+local ResourceTypes = require(script.Parent.Parent.Resource.Types)
+
 export type MachinePartId = "Conveyor1" | "Upgrader1" | "CoalProcessor" | "Conveyor2" | "Upgrader2" | "CollectionPoint"
 export type MachinePartState = "Locked" | "Preview" | "Built" | "Active"
 export type MachineUpgradeType = "Level" | "ProcessingTime" | "OutputMultiplier"
 export type PieceStage = "InputConveyor" | "InputUpgrader" | "OutputConveyor" | "OutputUpgrader" | "CollectionWait"
-export type ResourceType = "Wood" | "Stone" | "Coal"
+export type ResourceType = ResourceTypes.ResourceId
 
 export type MachinePartData = {
 	Built: boolean,

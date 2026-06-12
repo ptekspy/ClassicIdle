@@ -1,6 +1,7 @@
 --!strict
 
 local Types = require(script.Parent.Types)
+local ResourceConfig = require(script.Parent.Parent.Resource.Config)
 
 export type RoleDefinition = {
 	DisplayName: string,
@@ -8,7 +9,24 @@ export type RoleDefinition = {
 	TemplateName: string,
 	ActionAnimationId: string,
 	ResourceType: Types.ResourceType?,
+	Behavior: string,
 }
+
+local roles = {} :: { [string]: RoleDefinition }
+for _, resourceId in ResourceConfig.Order do
+	local definition = ResourceConfig.Get(resourceId)
+	local worker = definition and definition.Worker
+	if worker then
+		roles[resourceId] = {
+			DisplayName = worker.DisplayName,
+			BaseCost = worker.BaseCost,
+			TemplateName = worker.TemplateName,
+			ActionAnimationId = worker.ActionAnimationId,
+			ResourceType = resourceId,
+			Behavior = worker.Behavior,
+		}
+	end
+end
 
 local Config = {
 	IdleAnimationId = "rbxassetid://507766666",
@@ -18,29 +36,7 @@ local Config = {
 	RetrySeconds = 1,
 	ActionSeconds = 1,
 	DepositRetrySeconds = 1,
-	Roles = {
-		Wood = {
-			DisplayName = "Wood NPC",
-			BaseCost = 10,
-			TemplateName = "Wood",
-			ActionAnimationId = "rbxassetid://522635514",
-			ResourceType = "Wood",
-		},
-		Stone = {
-			DisplayName = "Stone NPC",
-			BaseCost = 25,
-			TemplateName = "Stone",
-			ActionAnimationId = "rbxassetid://522635514",
-			ResourceType = "Stone",
-		},
-		Coal = {
-			DisplayName = "Coal NPC",
-			BaseCost = 500,
-			TemplateName = "CoalProcessor",
-			ActionAnimationId = "rbxassetid://522635514",
-			ResourceType = "Coal",
-		},
-	} :: { [Types.Role]: RoleDefinition },
+	Roles = roles,
 }
 
 return Config

@@ -160,9 +160,16 @@ local function isValidTarget(instance: Instance?): boolean
 		return false
 	end
 
-	return CollectionService:HasTag(instance, InteractionConfig.Tag)
-		and instance:GetAttribute(InteractionConfig.Attributes.OwnerUserId) == player.UserId
-		and isInRange(instance)
+	if not CollectionService:HasTag(instance, InteractionConfig.Tag) or not isInRange(instance) then
+		return false
+	end
+
+	local scope = instance:GetAttribute(InteractionConfig.Attributes.Scope)
+	return scope == InteractionConfig.Scopes.Shared
+		or (
+			scope == InteractionConfig.Scopes.OwnedPlot
+			and instance:GetAttribute(InteractionConfig.Attributes.OwnerUserId) == player.UserId
+		)
 end
 
 local function getInteractionTarget(instance: Instance?): InteractionTarget?

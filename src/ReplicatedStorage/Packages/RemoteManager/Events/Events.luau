@@ -6,6 +6,10 @@ local RemoteEventNames = {
 	"MachineMenu",
 	"MachineRequest",
 	"QuestUpdate",
+	"FactoryRequest",
+	"FactoryStateUpdate",
+	"FactoryActionResult",
+	"FactoryMenu",
 }
 
 return RemoteEventNames

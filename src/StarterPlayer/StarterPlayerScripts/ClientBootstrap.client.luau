@@ -7,7 +7,7 @@ local TweenService = game:GetService("TweenService")
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
 local InteractionController = require(script.Parent.Controllers.InteractionController)
 local WorkerController = require(script.Parent.Controllers.WorkerController)
-local MachineController = require(script.Parent.Controllers.MachineController)
+local FactoryController = require(script.Parent.Controllers.FactoryController)
 local QuestController = require(script.Parent.Controllers.QuestController)
 
 local player = Players.LocalPlayer
@@ -87,5 +87,5 @@ feedbackEvent.OnClientEvent:Connect(showFeedback)
 
 InteractionController.Start()
 WorkerController.Start()
-MachineController.Start()
+FactoryController.Start()
 QuestController.Start()

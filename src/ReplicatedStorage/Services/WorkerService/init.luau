@@ -8,7 +8,7 @@ local DataService = require(ReplicatedStorage.Services.DataService)
 local DisplayService = require(ReplicatedStorage.Services.DisplayService)
 local EconomyService = require(ReplicatedStorage.Services.EconomyService)
 local InteractionConfig = require(ReplicatedStorage.Interaction.Config)
-local MachineService = require(ReplicatedStorage.Services.MachineService)
+local FactoryService = require(ReplicatedStorage.Services.FactoryService)
 local PlotConfig = require(ReplicatedStorage.Plot.Config)
 local QuestService = require(ReplicatedStorage.Services.QuestService)
 local ResourceNodeService = require(ReplicatedStorage.Services.ResourceNodeService)
@@ -24,6 +24,7 @@ type RuntimeWorker = {
 	NPC: WorkerTypes.NPCData,
 	Player: Player,
 	Plot: Model,
+	MovementFailures: number,
 }
 
 local assets = ReplicatedStorage:WaitForChild("Assets")
@@ -66,23 +67,8 @@ local function getGroundY(plot: Model): number
 	return plot:GetPivot().Position.Y
 end
 
-local function getHomeCFrame(plot: Model, homeSlotId: string): CFrame?
-	local homes = plot:FindFirstChild(PlotConfig.Paths.WorkerHomes)
-	local home = homes and homes:FindFirstChild(homeSlotId)
-
-	if not home then
-		return nil
-	end
-
-	local pivot = if home:IsA("Model") then home:GetPivot() elseif home:IsA("BasePart") then home.CFrame else nil
-
-	if not pivot then
-		return nil
-	end
-
-	local position = Vector3.new(pivot.Position.X, getGroundY(plot), pivot.Position.Z)
-	local plotCenter = plot:GetPivot().Position
-	return CFrame.lookAt(position, Vector3.new(plotCenter.X, position.Y, plotCenter.Z))
+local function getHomeCFrame(player: Player, plot: Model, homeSlotId: string): CFrame?
+	return FactoryService.GetWorkerHomeCFrame(player, homeSlotId)
 end
 
 local function getApproach(plot: Model, path: string): BasePart?
@@ -90,7 +76,7 @@ local function getApproach(plot: Model, path: string): BasePart?
 	return if ok then result else nil
 end
 
-local function moveToPosition(worker: RuntimeWorker, humanoid: Humanoid, target: BasePart, position: Vector3): boolean
+local function moveToPosition(worker: RuntimeWorker, humanoid: Humanoid, target: Instance, position: Vector3): boolean
 	humanoid:MoveTo(position)
 	local completed = false
 	local reached = false
@@ -113,7 +99,7 @@ local function moveToPosition(worker: RuntimeWorker, humanoid: Humanoid, target:
 	return worker.Active and target.Parent ~= nil and reached
 end
 
-local function moveTo(worker: RuntimeWorker, target: BasePart): boolean
+local function moveToPoint(worker: RuntimeWorker, target: Instance, position: Vector3): boolean
 	if not worker.Active or not worker.Model.Parent or not target.Parent then
 		return false
 	end
@@ -133,7 +119,7 @@ local function moveTo(worker: RuntimeWorker, target: BasePart): boolean
 		WaypointSpacing = 4,
 	})
 	local computed = pcall(function()
-		path:ComputeAsync(root.Position, target.Position)
+		path:ComputeAsync(root.Position, position)
 	end)
 
 	if computed and path.Status == Enum.PathStatus.Success then
@@ -150,7 +136,11 @@ local function moveTo(worker: RuntimeWorker, target: BasePart): boolean
 		return true
 	end
 
-	return moveToPosition(worker, humanoid, target, target.Position)
+	return moveToPosition(worker, humanoid, target, position)
+end
+
+local function moveTo(worker: RuntimeWorker, target: BasePart): boolean
+	return moveToPoint(worker, target, target.Position)
 end
 
 local function playAction(worker: RuntimeWorker)
@@ -226,16 +216,17 @@ local function runCoalCycle(worker: RuntimeWorker)
 		return
 	end
 
-	local collectionPoint = getApproach(worker.Plot, PlotConfig.Paths.CollectionPointApproach)
-	if not collectionPoint or not moveTo(worker, collectionPoint) then
+	local collectionPoint = FactoryService.GetFirstCollectionModel(worker.Player)
+	local collectionRoot = collectionPoint and (collectionPoint.PrimaryPart or collectionPoint:FindFirstChildWhichIsA("BasePart", true))
+	if not collectionPoint or not collectionRoot or not moveToPoint(worker, collectionPoint, collectionRoot.Position) then
 		task.wait(WorkerConfig.RetrySeconds)
 		return
 	end
 
 	playAction(worker)
-	local withdrawn = MachineService.WithdrawCollection(worker.Player, EconomyService.GetNPCAmount(worker.NPC))
+	local withdrawn, resourceType = FactoryService.WithdrawCollection(worker.Player, EconomyService.GetNPCAmount(worker.NPC))
 	if withdrawn > 0 then
-		worker.NPC.CargoType = "Coal"
+		worker.NPC.CargoType = resourceType
 		worker.NPC.CargoAmount = withdrawn
 		setState(worker, "MovingToStorage")
 	else
@@ -267,31 +258,36 @@ local function runResourceCycle(worker: RuntimeWorker)
 	end
 
 	setState(worker, "FindingWork")
-	local node, reserved = ResourceNodeService.FindAndReserve(
-		worker.Plot,
+	local node, reservation = ResourceNodeService.FindAndReserve(
 		resourceType,
 		root.Position,
-		EconomyService.GetNPCAmount(worker.NPC)
+		EconomyService.GetNPCAmount(worker.NPC),
+		worker.Model
 	)
 
-	if not node or reserved <= 0 then
+	if not node or not reservation then
 		task.wait(WorkerConfig.RetrySeconds)
 		return
 	end
 
-	local approachPath = if worker.NPC.Role == "Wood"
-		then PlotConfig.Paths.TreeApproach
-		else PlotConfig.Paths.RockApproach
-	local approach = getApproach(worker.Plot, approachPath)
-
-	if not approach or not moveTo(worker, approach) or not node.Parent then
-		ResourceNodeService.Release(worker.Plot, node, reserved)
+	local approachPosition = ResourceNodeService.GetApproachPosition(node, root.Position)
+	if not moveToPoint(worker, node, approachPosition) or not ResourceNodeService.IsRegistered(node) then
+		ResourceNodeService.ReleaseReservation(reservation)
+		worker.MovementFailures += 1
+		if worker.MovementFailures >= 3 then
+			local storage = getApproach(worker.Plot, PlotConfig.Paths.StorageApproach)
+			if storage then
+				moveTo(worker, storage)
+			end
+			worker.MovementFailures = 0
+		end
 		task.wait(WorkerConfig.RetrySeconds)
 		return
 	end
 
+	worker.MovementFailures = 0
 	playAction(worker)
-	local collected = ResourceNodeService.CollectReserved(worker.Plot, node, reserved)
+	local collected = ResourceNodeService.CollectReserved(reservation)
 
 	if collected > 0 then
 		worker.NPC.CargoType = resourceType
@@ -302,7 +298,10 @@ end
 
 local function runWorker(worker: RuntimeWorker)
 	while worker.Active and worker.Model.Parent and worker.Plot.Parent and DataService.TryGet(worker.Player) do
-		if worker.NPC.Role == "Coal" then
+		local definition = WorkerConfig.Roles[worker.NPC.Role]
+		if not definition then
+			return
+		elseif definition.Behavior == "CoalProcessor" then
 			runCoalCycle(worker)
 		else
 			runResourceCycle(worker)
@@ -313,8 +312,11 @@ end
 
 local function createWorker(player: Player, plot: Model, npc: WorkerTypes.NPCData): RuntimeWorker?
 	local definition = WorkerConfig.Roles[npc.Role]
+	if not definition then
+		return nil
+	end
 	local template = workerTemplates:FindFirstChild(definition.TemplateName)
-	local homeCFrame = getHomeCFrame(plot, npc.HomeSlotId)
+	local homeCFrame = getHomeCFrame(player, plot, npc.HomeSlotId)
 
 	if not template or not template:IsA("Model") or not homeCFrame then
 		return nil
@@ -337,6 +339,7 @@ local function createWorker(player: Player, plot: Model, npc: WorkerTypes.NPCDat
 	model:SetAttribute("InteractionObjectText", definition.DisplayName)
 	model:SetAttribute("InteractionMaxDistance", 10)
 	model:SetAttribute("InteractionOwnerUserId", player.UserId)
+	model:SetAttribute(InteractionConfig.Attributes.Scope, InteractionConfig.Scopes.OwnedPlot)
 	model.Parent = workersFolder
 	model:PivotTo(homeCFrame)
 	CollectionService:AddTag(model, InteractionConfig.Tag)
@@ -375,6 +378,7 @@ local function createWorker(player: Player, plot: Model, npc: WorkerTypes.NPCDat
 		NPC = npc,
 		Player = player,
 		Plot = plot,
+		MovementFailures = 0,
 	}
 
 	worker.IdleTrack:Play(0.2)
@@ -383,30 +387,7 @@ local function createWorker(player: Player, plot: Model, npc: WorkerTypes.NPCDat
 end
 
 function WorkerService.GetAvailableHomeSlot(plot: Model, data: any): string?
-	local homes = plot:FindFirstChild(PlotConfig.Paths.WorkerHomes)
-
-	if not homes then
-		return nil
-	end
-
-	local used = {}
-
-	for _, npc in data.NPCs do
-		used[npc.HomeSlotId] = true
-	end
-
-	local ordered = homes:GetChildren()
-	table.sort(ordered, function(a, b)
-		return a.Name < b.Name
-	end)
-
-	for _, home in ordered do
-		if not used[home.Name] then
-			return home.Name
-		end
-	end
-
-	return nil
+	return FactoryService.GetAvailableWorkerHome(data)
 end
 
 function WorkerService.Spawn(player: Player, plot: Model, npc: WorkerTypes.NPCData): boolean

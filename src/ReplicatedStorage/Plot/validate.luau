@@ -12,9 +12,7 @@ local function validate(plot: Model)
 
 	for _, path in
 		{
-			paths.ManualTree,
-			paths.TreeLeaves,
-			paths.ManualRock,
+			paths.Ground,
 			paths.NPCPurchasePad,
 			paths.StorageUpgradeButton,
 			paths.MachineStorageOutput,
@@ -25,13 +23,12 @@ local function validate(plot: Model)
 			paths.Upgrader2Interaction,
 			paths.CollectionPointInteraction,
 			paths.SellTouchPad,
-			paths.TreeApproach,
-			paths.RockApproach,
 			paths.StorageApproach,
 			paths.CollectionPointApproach,
 			paths.StorageDisplayAnchor,
 			paths.StorageDropTarget,
 			paths.PlayerSpawn,
+			paths.BuildGridBounds,
 		}
 	do
 		getPart(plot, path)
@@ -39,8 +36,6 @@ local function validate(plot: Model)
 
 	for _, path in
 		{
-			paths.ManualTreeTarget,
-			paths.ManualRockTarget,
 			paths.NPCPurchasePadTarget,
 			paths.StorageUpgradeButtonTarget,
 			paths.Conveyor1,
@@ -54,7 +49,18 @@ local function validate(plot: Model)
 		getModel(plot, path)
 	end
 
-	for _, folderName in { paths.WorkerHomes, paths.WorkerApproachPoints, paths.Machine, paths.MachineRuntimePieces } do
+	for _, folderName in
+		{
+			paths.WorkerHomes,
+			paths.WorkerApproachPoints,
+			paths.Machine,
+			paths.MachineRuntimePieces,
+			paths.BuildGridBlockers,
+			paths.BuildGridPlacedItems,
+			paths.BuildGridRuntimeItems,
+			paths.Drops,
+		}
+	do
 		local folder = resolve(plot, folderName)
 
 		if not folder or not folder:IsA("Folder") then

@@ -1,6 +1,8 @@
 --!strict
 
-export type ResourceType = "Wood" | "Stone" | "Coal"
+local ResourceTypes = require(script.Parent.Parent.Parent.Resource.Types)
+
+export type ResourceType = ResourceTypes.ResourceId
 
 export type SpawnDropOptions = {
 	Plot: Model,

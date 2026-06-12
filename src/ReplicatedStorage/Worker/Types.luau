@@ -1,7 +1,9 @@
 --!strict
 
-export type Role = "Wood" | "Stone" | "Coal"
-export type ResourceType = "Wood" | "Stone" | "Coal"
+local ResourceTypes = require(script.Parent.Parent.Resource.Types)
+
+export type Role = string
+export type ResourceType = ResourceTypes.ResourceId
 export type UpgradeType = "Speed" | "Amount"
 
 export type NPCData = {

@@ -10,6 +10,7 @@ local getPlotPart = require(ReplicatedStorage.Plot.getPart)
 local PlotService = require(ReplicatedStorage.Services.PlotService)
 local RateLimit = require(ReplicatedStorage.Packages.RateLimit)
 local RemoteManager = require(ReplicatedStorage.Packages.RemoteManager)
+local ResourceNodeService = require(ReplicatedStorage.Services.ResourceNodeService)
 
 local interactionEvent = RemoteManager.InteractionRequest :: RemoteEvent
 local interactionRateLimit = RateLimit.New(8)
@@ -33,6 +34,7 @@ function InteractionService.RegisterTarget(
 	target:SetAttribute(InteractionConfig.Attributes.ObjectText, objectText)
 	target:SetAttribute(InteractionConfig.Attributes.MaxDistance, maxDistance or 10)
 	target:SetAttribute(InteractionConfig.Attributes.OwnerUserId, player.UserId)
+	target:SetAttribute(InteractionConfig.Attributes.Scope, InteractionConfig.Scopes.OwnedPlot)
 	CollectionService:AddTag(target, InteractionConfig.Tag)
 end
 
@@ -43,6 +45,31 @@ function InteractionService.UnregisterTarget(target: Model)
 	target:SetAttribute(InteractionConfig.Attributes.ObjectText, nil)
 	target:SetAttribute(InteractionConfig.Attributes.MaxDistance, nil)
 	target:SetAttribute(InteractionConfig.Attributes.OwnerUserId, nil)
+	target:SetAttribute(InteractionConfig.Attributes.Scope, nil)
+end
+
+local function hasLineOfSight(character: Model, target: Model, origin: Vector3): boolean
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { character, workspace:WaitForChild("PlotSpawns") }
+
+	local primaryTarget = if target.PrimaryPart then target.PrimaryPart.Position else target:GetPivot().Position
+	local primaryResult = workspace:Raycast(origin, (primaryTarget - origin) * 1.01, params)
+	if primaryResult and primaryResult.Instance:IsDescendantOf(target) then
+		return true
+	end
+
+	for _, descendant in target:GetDescendants() do
+		if not descendant:IsA("BasePart") then
+			continue
+		end
+		local targetPoint = descendant.Position
+		local result = workspace:Raycast(origin, (targetPoint - origin) * 1.01, params)
+		if result and result.Instance:IsDescendantOf(target) then
+			return true
+		end
+	end
+	return false
 end
 
 local function isValidRequest(player: Player, target: Model): (boolean, string?, Model?)
@@ -53,13 +80,23 @@ local function isValidRequest(player: Player, target: Model): (boolean, string?,
 	local interactionId = target:GetAttribute(InteractionConfig.Attributes.Id)
 	local ownerUserId = target:GetAttribute(InteractionConfig.Attributes.OwnerUserId)
 	local maxDistance = target:GetAttribute(InteractionConfig.Attributes.MaxDistance)
+	local scope = target:GetAttribute(InteractionConfig.Attributes.Scope)
 	local plot = PlotService.TryGet(player)
 
-	if typeof(interactionId) ~= "string" or typeof(ownerUserId) ~= "number" or typeof(maxDistance) ~= "number" then
+	if typeof(interactionId) ~= "string" or typeof(maxDistance) ~= "number" or not plot then
 		return false
 	end
 
-	if ownerUserId ~= player.UserId or not plot or not target:IsDescendantOf(plot) then
+	if scope == InteractionConfig.Scopes.Shared then
+		if interactionId ~= "CollectResourceNode" or not ResourceNodeService.IsRegistered(target) then
+			return false
+		end
+	elseif
+		scope ~= InteractionConfig.Scopes.OwnedPlot
+		or typeof(ownerUserId) ~= "number"
+		or ownerUserId ~= player.UserId
+		or not target:IsDescendantOf(plot)
+	then
 		return false
 	end
 
@@ -73,6 +110,10 @@ local function isValidRequest(player: Player, target: Model): (boolean, string?,
 	local closestPoint = getClosestPoint(target, rootPart.Position)
 
 	if (rootPart.Position - closestPoint).Magnitude > maxDistance then
+		return false
+	end
+
+	if not character or not hasLineOfSight(character, target, rootPart.Position) then
 		return false
 	end
 

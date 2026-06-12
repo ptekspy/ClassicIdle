@@ -1,35 +1,46 @@
 --!strict
 
 local CollectionService = game:GetService("CollectionService")
+local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local PlotConfig = require(ReplicatedStorage.Plot.Config)
-local WorkerConfig = require(ReplicatedStorage.Worker.Config)
-local WorkerTypes = require(ReplicatedStorage.Worker.Types)
-local getPlotModel = require(ReplicatedStorage.Plot.getModel)
+local ResourceCatalog = require(ReplicatedStorage.Resource.Config)
+local ResourceConfig = require(ReplicatedStorage.ResourceNode.Config)
+local ResourceTypes = require(ReplicatedStorage.ResourceNode.Types)
 
+type Reservation = ResourceTypes.Reservation
 type NodeState = {
 	Model: Model,
-	ResourceType: WorkerTypes.ResourceType,
+	ResourceType: ResourceTypes.ResourceType,
 	Capacity: number,
 	Available: number,
 	Reserved: number,
+	Reservations: { [string]: Reservation },
 	RespawnToken: number,
 	OriginalTransparency: { [BasePart]: number },
 }
 
 local Local = {
-	TAG = "ResourceNode",
-	nodesByPlot = {} :: { [Model]: { [Model]: NodeState } },
+	nodes = {} :: { [Model]: NodeState },
+	nodesByType = {} :: { [ResourceTypes.ResourceType]: { [Model]: NodeState } },
+	started = false,
 }
 
 local ResourceNodeService = {}
 
-local function createProgressGui(node: Model): BillboardGui
-	local primaryPart = node.PrimaryPart :: BasePart
-	local existing = primaryPart:FindFirstChild("RespawnProgress")
+local function getNumberAttribute(instance: Instance, name: string, default: number): number
+	local value = instance:GetAttribute(name)
+	return if typeof(value) == "number" then value else default
+end
 
+local function createProgressGui(node: Model): BillboardGui
+	local primaryPart = node.PrimaryPart
+	if not primaryPart then
+		error(`Resource node {node:GetFullName()} must have a PrimaryPart`)
+	end
+
+	local existing = primaryPart:FindFirstChild("RespawnProgress")
 	if existing and existing:IsA("BillboardGui") then
 		return existing
 	end
@@ -61,7 +72,6 @@ local function createProgressGui(node: Model): BillboardGui
 	local fillCorner = Instance.new("UICorner")
 	fillCorner.CornerRadius = UDim.new(0, 8)
 	fillCorner.Parent = fill
-
 	return gui
 end
 
@@ -73,23 +83,31 @@ local function setDepletedAppearance(state: NodeState, depleted: boolean)
 	end
 end
 
+local function clearReservations(state: NodeState)
+	table.clear(state.Reservations)
+	state.Reserved = 0
+	state.Model:SetAttribute(ResourceConfig.Attributes.ReservedAmount, 0)
+end
+
 local function beginRespawn(state: NodeState)
 	state.RespawnToken += 1
 	local token = state.RespawnToken
-	local durationAttribute = state.Model:GetAttribute("RespawnSeconds")
-	local duration = if typeof(durationAttribute) == "number" then math.max(0.1, durationAttribute) else WorkerConfig.DefaultRespawnSeconds
+	local duration = math.max(
+		0.1,
+		getNumberAttribute(state.Model, ResourceConfig.Attributes.RespawnSeconds, ResourceConfig.DefaultRespawnSeconds)
+	)
 	local gui = createProgressGui(state.Model)
 	local background = gui:FindFirstChild("Background") :: Frame
 	local fill = background:FindFirstChild("Fill") :: Frame
 
+	clearReservations(state)
 	setDepletedAppearance(state, true)
 	gui.Enabled = true
 	fill.Size = UDim2.fromScale(0, 1)
-	state.Model:SetAttribute("IsDepleted", true)
+	state.Model:SetAttribute(ResourceConfig.Attributes.IsDepleted, true)
 
 	task.spawn(function()
 		local startedAt = os.clock()
-
 		while state.RespawnToken == token and state.Model.Parent and os.clock() - startedAt < duration do
 			fill.Size = UDim2.fromScale(math.clamp((os.clock() - startedAt) / duration, 0, 1), 1)
 			RunService.Heartbeat:Wait()
@@ -100,25 +118,53 @@ local function beginRespawn(state: NodeState)
 		end
 
 		state.Available = state.Capacity
-		state.Reserved = 0
-		state.Model:SetAttribute("AvailableAmount", state.Available)
-		state.Model:SetAttribute("ReservedAmount", 0)
-		state.Model:SetAttribute("IsDepleted", false)
+		state.Model:SetAttribute(ResourceConfig.Attributes.AvailableAmount, state.Available)
+		state.Model:SetAttribute(ResourceConfig.Attributes.IsDepleted, false)
 		setDepletedAppearance(state, false)
 		fill.Size = UDim2.fromScale(1, 1)
 		task.wait(1)
-
 		if state.RespawnToken == token then
 			gui.Enabled = false
 		end
 	end)
 end
 
-local function registerNode(plot: Model, node: Model, resourceType: WorkerTypes.ResourceType)
-	local capacityAttribute = node:GetAttribute("Capacity")
-	local capacity = if typeof(capacityAttribute) == "number" then math.max(1, math.floor(capacityAttribute)) else WorkerConfig.DefaultCapacity
-	local transparencies = {}
+local function getState(node: Model): NodeState?
+	local state = Local.nodes[node]
+	if not state or not node.Parent then
+		return nil
+	end
+	return state
+end
 
+local function isAvailable(state: NodeState): boolean
+	return state.Model.Parent ~= nil
+		and state.Model:GetAttribute(ResourceConfig.Attributes.IsDisabled) ~= true
+		and state.Available - state.Reserved > 0
+end
+
+function ResourceNodeService.Start()
+	if Local.started then
+		return
+	end
+	Local.started = true
+end
+
+function ResourceNodeService.RegisterNode(node: Model): boolean
+	if Local.nodes[node] or not node.PrimaryPart then
+		return false
+	end
+
+	local resourceType = node:GetAttribute(ResourceConfig.Attributes.ResourceType)
+	if typeof(resourceType) ~= "string" or not ResourceCatalog.IsValid(resourceType) then
+		return false
+	end
+
+	local capacity = math.max(
+		1,
+		math.floor(getNumberAttribute(node, ResourceConfig.Attributes.Capacity, ResourceConfig.DefaultCapacity))
+	)
+	local transparencies = {}
 	for _, descendant in node:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			transparencies[descendant] = descendant.Transparency
@@ -131,124 +177,150 @@ local function registerNode(plot: Model, node: Model, resourceType: WorkerTypes.
 		Capacity = capacity,
 		Available = capacity,
 		Reserved = 0,
+		Reservations = {},
 		RespawnToken = 0,
 		OriginalTransparency = transparencies,
 	}
-
-	Local.nodesByPlot[plot][node] = state
-	node:SetAttribute("AvailableAmount", capacity)
-	node:SetAttribute("ReservedAmount", 0)
-	node:SetAttribute("IsDepleted", false)
-	CollectionService:AddTag(node, Local.TAG)
+	Local.nodes[node] = state
+	Local.nodesByType[resourceType] = Local.nodesByType[resourceType] or {}
+	Local.nodesByType[resourceType][node] = state
+	node:SetAttribute(ResourceConfig.Attributes.AvailableAmount, capacity)
+	node:SetAttribute(ResourceConfig.Attributes.ReservedAmount, 0)
+	node:SetAttribute(ResourceConfig.Attributes.IsDepleted, false)
+	CollectionService:AddTag(node, ResourceConfig.Tags.Node)
 	createProgressGui(node)
+	return true
 end
 
-function ResourceNodeService.SetupPlot(plot: Model)
-	ResourceNodeService.CleanupPlot(plot)
-	Local.nodesByPlot[plot] = {}
-	registerNode(plot, getPlotModel(plot, PlotConfig.Paths.ManualTreeTarget), "Wood")
-	registerNode(plot, getPlotModel(plot, PlotConfig.Paths.ManualRockTarget), "Stone")
-end
-
-function ResourceNodeService.FindAndReserve(
-	plot: Model,
-	resourceType: WorkerTypes.ResourceType,
-	origin: Vector3,
-	requestedAmount: number
-): (Model?, number)
-	local nodes = Local.nodesByPlot[plot]
-	local bestState: NodeState?
-	local bestDistance = math.huge
-
-	if not nodes then
-		return nil, 0
-	end
-
-	for _, state in nodes do
-		local available = state.Available - state.Reserved
-
-		if state.ResourceType ~= resourceType or available <= 0 or not state.Model.Parent then
-			continue
-		end
-
-		local distance = (state.Model:GetPivot().Position - origin).Magnitude
-
-		if distance < bestDistance then
-			bestDistance = distance
-			bestState = state
-		end
-	end
-
-	if not bestState then
-		return nil, 0
-	end
-
-	local amount = math.min(math.max(0, math.floor(requestedAmount)), bestState.Available - bestState.Reserved)
-	bestState.Reserved += amount
-	bestState.Model:SetAttribute("ReservedAmount", bestState.Reserved)
-	return bestState.Model, amount
-end
-
-function ResourceNodeService.Release(plot: Model, node: Model, amount: number)
-	local state = Local.nodesByPlot[plot] and Local.nodesByPlot[plot][node]
-
+function ResourceNodeService.UnregisterNode(node: Model)
+	local state = Local.nodes[node]
 	if not state then
 		return
 	end
-
-	state.Reserved = math.max(0, state.Reserved - amount)
-	node:SetAttribute("ReservedAmount", state.Reserved)
+	state.RespawnToken += 1
+	Local.nodes[node] = nil
+	local nodesByType = Local.nodesByType[state.ResourceType]
+	if nodesByType then
+		nodesByType[node] = nil
+	end
+	CollectionService:RemoveTag(node, ResourceConfig.Tags.Node)
 end
 
-function ResourceNodeService.CollectReserved(plot: Model, node: Model, amount: number): number
-	local state = Local.nodesByPlot[plot] and Local.nodesByPlot[plot][node]
+function ResourceNodeService.IsRegistered(node: Model): boolean
+	return getState(node) ~= nil
+end
 
-	if not state or not node.Parent then
+function ResourceNodeService.GetResourceType(node: Model): ResourceTypes.ResourceType?
+	local state = getState(node)
+	return if state then state.ResourceType else nil
+end
+
+function ResourceNodeService.FindNearest(resourceType: ResourceTypes.ResourceType, origin: Vector3): Model?
+	local bestNode: Model?
+	local bestDistance = math.huge
+	local nodesByType = Local.nodesByType[resourceType]
+	if not nodesByType then
+		return nil
+	end
+	for node, state in nodesByType do
+		if not isAvailable(state) then
+			continue
+		end
+		local distance = (node:GetPivot().Position - origin).Magnitude
+		if distance < bestDistance then
+			bestDistance = distance
+			bestNode = node
+		end
+	end
+	return bestNode
+end
+
+function ResourceNodeService.FindAndReserve(
+	resourceType: ResourceTypes.ResourceType,
+	origin: Vector3,
+	requestedAmount: number,
+	reservationOwner: Instance
+): (Model?, Reservation?)
+	local node = ResourceNodeService.FindNearest(resourceType, origin)
+	local state = node and getState(node)
+	if not node or not state then
+		return nil, nil
+	end
+
+	local amount = math.min(math.max(0, math.floor(requestedAmount)), state.Available - state.Reserved)
+	if amount <= 0 then
+		return nil, nil
+	end
+
+	local reservation: Reservation = {
+		Id = HttpService:GenerateGUID(false),
+		Node = node,
+		Owner = reservationOwner,
+		Amount = amount,
+	}
+	state.Reservations[reservation.Id] = reservation
+	state.Reserved += amount
+	node:SetAttribute(ResourceConfig.Attributes.ReservedAmount, state.Reserved)
+	return node, reservation
+end
+
+function ResourceNodeService.ReleaseReservation(reservation: Reservation)
+	local state = getState(reservation.Node)
+	if not state or state.Reservations[reservation.Id] ~= reservation then
+		return
+	end
+	state.Reservations[reservation.Id] = nil
+	state.Reserved = math.max(0, state.Reserved - reservation.Amount)
+	reservation.Node:SetAttribute(ResourceConfig.Attributes.ReservedAmount, state.Reserved)
+end
+
+function ResourceNodeService.CollectReserved(reservation: Reservation): number
+	local state = getState(reservation.Node)
+	if not state or state.Reservations[reservation.Id] ~= reservation then
 		return 0
 	end
 
-	local collected = math.min(math.max(0, math.floor(amount)), state.Reserved, state.Available)
+	state.Reservations[reservation.Id] = nil
+	local collected = math.min(reservation.Amount, state.Reserved, state.Available)
 	state.Reserved -= collected
 	state.Available -= collected
-	node:SetAttribute("ReservedAmount", state.Reserved)
-	node:SetAttribute("AvailableAmount", state.Available)
-
+	reservation.Node:SetAttribute(ResourceConfig.Attributes.ReservedAmount, state.Reserved)
+	reservation.Node:SetAttribute(ResourceConfig.Attributes.AvailableAmount, state.Available)
 	if state.Available <= 0 then
 		beginRespawn(state)
 	end
-
 	return collected
 end
 
-function ResourceNodeService.TryCollect(plot: Model, node: Model, requestedAmount: number): number
-	local state = Local.nodesByPlot[plot] and Local.nodesByPlot[plot][node]
-
-	if not state then
+function ResourceNodeService.TryCollect(node: Model, requestedAmount: number): number
+	local state = getState(node)
+	if not state or not isAvailable(state) then
 		return 0
 	end
 
 	local collected = math.min(math.max(0, math.floor(requestedAmount)), state.Available - state.Reserved)
 	state.Available -= collected
-	node:SetAttribute("AvailableAmount", state.Available)
-
+	node:SetAttribute(ResourceConfig.Attributes.AvailableAmount, state.Available)
 	if state.Available <= 0 and collected > 0 then
 		beginRespawn(state)
 	end
-
 	return collected
 end
 
-function ResourceNodeService.CleanupPlot(plot: Model)
-	local nodes = Local.nodesByPlot[plot]
-	Local.nodesByPlot[plot] = nil
-
-	if not nodes then
-		return
+function ResourceNodeService.GetApproachPosition(node: Model, origin: Vector3): Vector3
+	local boxCFrame, boxSize = node:GetBoundingBox()
+	local direction = Vector3.new(origin.X - boxCFrame.Position.X, 0, origin.Z - boxCFrame.Position.Z)
+	if direction.Magnitude < 0.1 then
+		direction = Vector3.new(0, 0, 1)
 	end
+	local radius = math.max(boxSize.X, boxSize.Z) * 0.5 + ResourceConfig.ApproachDistance
+	return Vector3.new(boxCFrame.Position.X, boxCFrame.Position.Y - boxSize.Y * 0.5, boxCFrame.Position.Z)
+		+ direction.Unit * radius
+end
 
-	for _, state in nodes do
-		state.RespawnToken += 1
-		CollectionService:RemoveTag(state.Model, Local.TAG)
+function ResourceNodeService.Reset()
+	for node in Local.nodes do
+		ResourceNodeService.UnregisterNode(node)
 	end
 end
 

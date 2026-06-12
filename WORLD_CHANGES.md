@@ -1,758 +1,754 @@
-# MVP Conveyor Machine: Required Roblox Studio World Changes
+# Player-Buildable Factory: Required Roblox Studio World Changes
 
-## Guided Quest And Coal Collector Addition
+Complete this checklist manually in the active **Classic Idle** Roblox Studio place.
 
-The guided quest system reuses the existing plot objects for wayfinding. Its only
-additional authored world requirement is one invisible Coal NPC approach point.
+Do not change source code yet. Do not delete the existing machine or worker-home objects yet. After completing every verification item at the bottom, confirm the world changes are finished before implementation begins.
 
-Under `ReplicatedStorage.Assets.PlotTemplate.WorkerApproachPoints`, create a
-standard `Part` named exactly `CollectionPoint` with:
+## Important Coordinate Convention
+
+The active plot template is:
+
+```text
+ReplicatedStorage.Assets.PlotTemplate
+```
+
+Its `Ground` is currently:
+
+- Position: `(0, -0.5, 0)`
+- Size: `(80, 1, 80)`
+- Rotation: `(0, 0, 0)`
+- Top surface Y position: `0`
+
+The logical build grid will be 20 cells wide by 20 cells deep:
+
+- Each cell is exactly `4 x 4` studs.
+- Grid `(1, 1)` is centered at local plot position `(-38, 0, -38)`.
+- Grid `(20, 20)` is centered at local plot position `(38, 0, 38)`.
+- Grid X increases toward plot-local East / positive X.
+- Grid Z increases toward plot-local South / positive Z.
+- North means local negative Z.
+- East means local positive X.
+- South means local positive Z.
+- West means local negative X.
+
+All positions below are relative to the authored `PlotTemplate` as it currently exists.
+
+---
+
+## 1. Fix The Duplicate Plot Spawn Name
+
+Current structure contains two Parts named `Plot08` and no `Plot09`.
+
+Under:
+
+```text
+Workspace.PlotSpawns
+```
+
+Rename exactly one of the two `Plot08` Parts to:
+
+```text
+Plot09
+```
+
+Do not move, resize, rotate, or delete either Part.
+
+After renaming, `Workspace.PlotSpawns` must contain exactly:
+
+```text
+Plot01
+Plot02
+Plot03
+Plot04
+Plot05
+Plot06
+Plot07
+Plot08
+Plot09
+Plot10
+```
+
+---
+
+## 2. Create The Plot BuildGrid Hierarchy
+
+Under:
+
+```text
+ReplicatedStorage.Assets.PlotTemplate
+```
+
+Create this exact hierarchy:
+
+```text
+BuildGrid (Folder)
+  Bounds (Part)
+  Blockers (Folder)
+    WorkerHomes (Part)
+    LegacyMachine (Part)
+    NPCPurchasePad (Part)
+    StorageArea (Part)
+    SellCrate (Part)
+    PlayerSpawn (Part)
+  PlacedItems (Folder)
+  RuntimeItems (Folder)
+```
+
+Names and classes must match exactly, including capitalization.
+
+### Common BuildGrid Part Properties
+
+Apply all of these properties to `Bounds` and every Part inside `Blockers`:
 
 | Property | Required value |
-| --- | --- |
-| `Position` | `Vector3.new(5, 0.5, -26)` |
-| `Size` | `Vector3.new(1, 1, 1)` |
+|---|---|
 | `Anchored` | `true` |
 | `CanCollide` | `false` |
 | `CanTouch` | `false` |
 | `CanQuery` | `false` |
-| `Transparency` | `1` |
 | `CastShadow` | `false` |
+| `Transparency` | `1` |
+| `Rotation` | `(0, 0, 0)` |
+| `Material` | `SmoothPlastic` |
+| `Color` | Any; invisible at runtime |
 
-This marker is where the Coal NPC stands while withdrawing Coal from the
-Collection Point. Keep the existing
-`ReplicatedStorage.Assets.WorkerTemplates.CoalProcessor` model; runtime code
-reuses it as the Coal NPC collector.
+Do not add Attachments, scripts, constraints, welds, or descendants to these Parts.
 
-Verification:
+### Bounds
 
-- [ ] `ReplicatedStorage.Assets.PlotTemplate.WorkerApproachPoints.CollectionPoint` exists.
-- [ ] It is an invisible, anchored, non-colliding `Part`.
-- [ ] `ReplicatedStorage.Assets.WorkerTemplates.CoalProcessor` still exists.
-- [ ] No quest UI or quest marker instances were manually added.
+Exact path:
 
-Complete every checklist item in this document inside Roblox Studio before asking Codex to implement the source-code phase.
+```text
+ReplicatedStorage.Assets.PlotTemplate.BuildGrid.Bounds
+```
 
-Do not rename objects differently from the names shown here. The source implementation will treat this hierarchy as a world contract.
+Required properties:
 
-## Important Workflow Gate
+| Property | Required value |
+|---|---|
+| Class | `Part` |
+| Position | `(0, 0.05, 0)` |
+| Size | `(80, 0.1, 80)` |
+| CollectionService tag | `BuildGridBounds` |
+| Attribute `CellSize` | Number: `4` |
 
-- Make these changes in **Edit mode**, not while the game is running.
-- Modify `ReplicatedStorage.Assets.PlotTemplate`, not a cloned plot under `Workspace.PlayerPlots`.
-- Do not implement scripts inside any world object.
-- Do not add `ProximityPrompt` instances. The game uses its existing custom interaction system.
-- Do not manually add the existing `Interactable` tag. Runtime code will add and remove that tag according to progression.
-- Do not delete the old Coal Processor NPC template or its approach point yet.
-- Do not delete or modify Wood or Stone NPC world objects.
-- Do not delete the existing Coal Processor model. It will become the machine's processor model.
-- Save the place after completing the work.
-- After completing the verification checklist, tell Codex the world changes are complete. Source implementation must not begin before that confirmation.
+Do not add any other attributes or tags.
 
-The current plot uses an `80 x 80` Ground centered at approximately `(0, -0.5, 0)`.
+### Blockers
 
-The current important plot objects are approximately:
+Each blocker must have the CollectionService tag:
 
-| Object | Current position/bounding center |
-| --- | --- |
-| `StorageBin` | `(0, 2.1, 4)` |
-| `CoalProcessor` | `(0.15, 2.5, -11.9)` |
-| `NPCPurchasePad` | `(17.97, 0.35, -14.97)` |
-| `Ground` | `(0, -0.5, 0)` with size `(80, 1, 80)` |
+```text
+BuildGridBlocker
+```
 
-The new machine runs south from the Storage Bin through the existing Coal Processor and toward the Collection Point. All positions in this document are local positions inside the current `PlotTemplate`.
+Blockers mark cells unavailable for factory placement. Their X and Z sizes and positions must remain aligned to the 4-stud grid.
 
-## Workspace And Attachment Decisions
+| Exact Part name | Position | Size | Covered grid cells |
+|---|---:|---:|---|
+| `WorkerHomes` | `(0, 0.05, -34)` | `(80, 0.1, 12)` | X `1-20`, Z `1-3` |
+| `LegacyMachine` | `(0, 0.05, -12)` | `(8, 0.1, 32)` | X `10-11`, Z `4-11` |
+| `NPCPurchasePad` | `(18, 0.05, -16)` | `(12, 0.1, 8)` | X `14-16`, Z `6-7` |
+| `StorageArea` | `(-2, 0.05, 4)` | `(20, 0.1, 8)` | X `8-12`, Z `11-12` |
+| `SellCrate` | `(-10, 0.05, 22)` | `(12, 0.1, 12)` | X `7-9`, Z `14-16` |
+| `PlayerSpawn` | `(8, 0.05, 30)` | `(8, 0.1, 12)` | X `12-13`, Z `17-19` |
 
-No manual changes are required directly under `Workspace`.
+`PlacedItems` and `RuntimeItems` must remain empty authored Folders. Runtime code will populate them inside cloned player plots.
 
-- Do not create machine objects under `Workspace.PlayerPlots`; that folder contains runtime clones.
-- Do not create machine objects beside `Workspace.PlotSpawns`.
-- Do not modify, move, rename, add, or remove any `Workspace.PlotSpawns` parts.
-- The future `PlotService` will continue cloning `ReplicatedStorage.Assets.PlotTemplate` into `Workspace.PlayerPlots`.
+---
 
-No `Attachment` instances are required for this MVP.
+## 3. Create The BuildItemTemplates Folder
 
-- Invisible marker `Part` instances are the complete path-point contract.
-- Do not add attachments named `Start`, `End`, `Input`, `Output`, or similar.
-- Do not add Beams, AlignPosition constraints, LinearVelocity objects, or physical conveyor constraints.
-- Runtime code will interpolate anchored visual resource pieces between the named marker Parts.
+Under:
 
-## Final Required Hierarchy
+```text
+ReplicatedStorage.Assets
+```
 
-The relevant final hierarchy must be exactly:
+Create:
+
+```text
+BuildItemTemplates (Folder)
+```
+
+Inside it, create these six Models:
+
+```text
+ConveyorDropper
+StraightConveyor
+CornerConveyor
+ConveyorUpgrader
+ConveyorCollectionBin
+WorkerHome
+```
+
+Do not place these templates inside `PlotTemplate`.
+
+### Common Template Model Contract
+
+Every template Model must contain:
+
+```text
+TemplateName (Model)
+  Root (Part)
+  Visuals (Folder)
+  Markers (Folder)
+```
+
+For every template Model:
+
+| Requirement | Exact value |
+|---|---|
+| `PrimaryPart` | Its direct child `Root` |
+| Model pivot | Exactly the same position and rotation as `Root` |
+| CollectionService tag | `BuildItemTemplate` |
+| Attribute `BuildItemId` | String exactly matching Model name |
+| Attribute `TemplateVersion` | Number: `1` |
+
+For every `Root` Part:
+
+| Property | Required value |
+|---|---|
+| Name | `Root` |
+| Class | `Part` |
+| Position | `(0, 0, 0)` while authored in `BuildItemTemplates` |
+| Rotation | `(0, 0, 0)` |
+| Size | `(0.2, 0.2, 0.2)` |
+| Anchored | `true` |
+| CanCollide | `false` |
+| CanTouch | `false` |
+| CanQuery | `false` |
+| CastShadow | `false` |
+| Transparency | `1` |
+
+For every visual BasePart under `Visuals`:
+
+- `Anchored = true`
+- `CanCollide = false`
+- `CanTouch = false`
+- `CanQuery = false`
+- `CastShadow = true`
+- No scripts or constraints
+- Keep the visual inside its allowed footprint
+- All positions and rotations listed below are local to the template's `Root`.
+- Because every authored `Root` is at `(0, 0, 0)` with rotation `(0, 0, 0)`, enter each listed local Position and Rotation directly into Studio.
+- Colors are listed as RGB values. Enter them with the Studio color picker.
+- Exact primitive visuals are required for the first implementation. Decorative improvements can be made later without renaming or deleting the required Parts.
+
+For every marker Attachment:
+
+- Parent it directly to the template's `Root`.
+- Use the exact names and local `Position` values listed below.
+- Leave Attachment orientation at `(0, 0, 0)`.
+- Do not place marker Attachments inside the `Markers` Folder.
+- Keep the empty `Markers` Folder for future marker Parts and organization.
+
+The base orientation for every template is rotation `0`.
+
+### Cell-Edge And Connection Rule
+
+The cell boundary is an inclusive limit, not a required visual gap.
+
+- A 1x1 cell spans local X `-2 to 2` and local Z `-2 to 2`.
+- Parts may end exactly at `-2` or `2`.
+- Parts must never extend beyond `-2` or `2`.
+- Conveyor foundations, belts, and outer rails must reach exactly to every connection-facing edge.
+- Adjacent connected conveyor pieces therefore touch with no visible gap.
+- Path Attachments on connection edges use exact boundary positions such as Z `2` or `-2`, not inset positions such as `1.8`.
+- Decorative pieces that do not form a connection may remain inset.
+- The Worker Home intentionally remains inset because it is not a conveyor connection piece.
+
+For example, two connected Straight Conveyors have centers 4 studs apart. The first conveyor's output edge and `PathEnd` meet the next conveyor's input edge and `PathStart` at exactly the same world position.
+
+---
+
+## 4. StraightConveyor Template
+
+Exact path:
+
+```text
+ReplicatedStorage.Assets.BuildItemTemplates.StraightConveyor
+```
+
+Contract:
+
+- Footprint: `1 x 1` cell.
+- Input direction at rotation 0: South.
+- Output direction at rotation 0: North.
+- All visuals must remain inside local X `-2 to 2` and local Z `-2 to 2`.
+- The Foundation, Belt, and Rails must reach the South and North cell edges exactly.
+
+### Exact StraightConveyor Visuals
+
+Create these direct children inside `StraightConveyor.Visuals`:
+
+| Name | Class | Size | Position | Rotation | Color RGB | Material |
+|---|---|---:|---:|---:|---:|---|
+| `Foundation` | Part | `(4, 0.35, 4)` | `(0, 0.175, 0)` | `(0, 0, 0)` | `(55, 60, 65)` | Metal |
+| `Belt` | Part | `(2.8, 0.18, 4)` | `(0, 0.44, 0)` | `(0, 0, 0)` | `(24, 24, 27)` | SmoothPlastic |
+| `LeftRail` | Part | `(0.3, 0.45, 4)` | `(-1.65, 0.5, 0)` | `(0, 0, 0)` | `(115, 120, 125)` | Metal |
+| `RightRail` | Part | `(0.3, 0.45, 4)` | `(1.65, 0.5, 0)` | `(0, 0, 0)` | `(115, 120, 125)` | Metal |
+| `DirectionArrow` | Part | `(0.42, 0.08, 1.15)` | `(0, 0.58, 0.15)` | `(0, 0, 0)` | `(255, 220, 40)` | Neon |
+| `ArrowHeadLeft` | Part | `(0.28, 0.08, 0.9)` | `(-0.28, 0.58, -0.65)` | `(0, -45, 0)` | `(255, 220, 40)` | Neon |
+| `ArrowHeadRight` | Part | `(0.28, 0.08, 0.9)` | `(0.28, 0.58, -0.65)` | `(0, 45, 0)` | `(255, 220, 40)` | Neon |
+
+The two arrow-head Parts should form a clear point toward negative Z. If the point looks reversed, verify the Rotation signs and do not rotate the complete template.
+
+Required Attachments under `Root`:
+
+| Name | Local Position |
+|---|---:|
+| `PathStart` | `(0, 0.9, 2)` |
+| `PathEnd` | `(0, 0.9, -2)` |
+
+The completed conveyor should look like a low metal square with a black belt running South-to-North, silver side rails, and a yellow arrow pointing North.
+
+---
+
+## 5. CornerConveyor Template
+
+Exact path:
+
+```text
+ReplicatedStorage.Assets.BuildItemTemplates.CornerConveyor
+```
+
+Contract:
+
+- Footprint: `1 x 1` cell.
+- Input direction at rotation 0: South.
+- Output direction at rotation 0: East.
+- All visuals must remain inside local X `-2 to 2` and local Z `-2 to 2`.
+- One model supports all turn orientations through 90-degree rotation.
+- The South transport surface must reach Z `2`; the East transport surface must reach X `2`.
+
+### Exact CornerConveyor Visuals
+
+Create these direct children inside `CornerConveyor.Visuals`:
+
+| Name | Class | Size | Position | Rotation | Color RGB | Material |
+|---|---|---:|---:|---:|---:|---|
+| `Foundation` | Part | `(4, 0.35, 4)` | `(0, 0.175, 0)` | `(0, 0, 0)` | `(55, 60, 65)` | Metal |
+| `SouthBelt` | Part | `(2.8, 0.18, 2.5)` | `(0, 0.44, 0.75)` | `(0, 0, 0)` | `(24, 24, 27)` | SmoothPlastic |
+| `EastBelt` | Part | `(2.5, 0.18, 2.8)` | `(0.75, 0.44, 0)` | `(0, 0, 0)` | `(24, 24, 27)` | SmoothPlastic |
+| `SouthLeftRail` | Part | `(0.3, 0.45, 2.5)` | `(-1.65, 0.5, 0.75)` | `(0, 0, 0)` | `(115, 120, 125)` | Metal |
+| `SouthRightRail` | Part | `(0.3, 0.45, 1.2)` | `(1.65, 0.5, 1.4)` | `(0, 0, 0)` | `(115, 120, 125)` | Metal |
+| `EastTopRail` | Part | `(2.5, 0.45, 0.3)` | `(0.75, 0.5, -1.65)` | `(0, 0, 0)` | `(115, 120, 125)` | Metal |
+| `EastBottomRail` | Part | `(1.2, 0.45, 0.3)` | `(1.4, 0.5, 1.65)` | `(0, 0, 0)` | `(115, 120, 125)` | Metal |
+| `DirectionArrow` | Part | `(1.15, 0.08, 0.42)` | `(0.15, 0.58, 0)` | `(0, 0, 0)` | `(255, 220, 40)` | Neon |
+| `ArrowHeadNorth` | Part | `(0.9, 0.08, 0.28)` | `(0.65, 0.58, -0.28)` | `(0, 45, 0)` | `(255, 220, 40)` | Neon |
+| `ArrowHeadSouth` | Part | `(0.9, 0.08, 0.28)` | `(0.65, 0.58, 0.28)` | `(0, -45, 0)` | `(255, 220, 40)` | Neon |
+
+The yellow arrow sits over the center of the turn and points toward local East / positive X.
+
+Required Attachments under `Root`:
+
+| Name | Local Position |
+|---|---:|
+| `PathStart` | `(0, 0.9, 2)` |
+| `PathCorner` | `(0, 0.9, 0)` |
+| `PathEnd` | `(2, 0.9, 0)` |
+
+The completed corner should visually accept items from its South edge and turn them toward its East edge.
+
+---
+
+## 6. ConveyorUpgrader Template
+
+Exact path:
+
+```text
+ReplicatedStorage.Assets.BuildItemTemplates.ConveyorUpgrader
+```
+
+Contract:
+
+- Footprint: `1 x 1` cell.
+- Input direction at rotation 0: South.
+- Output direction at rotation 0: North.
+- All footprint-level visuals must remain inside local X `-2 to 2` and local Z `-2 to 2`.
+- Taller posts/beams are allowed vertically.
+- Its Foundation, Belt, and Rails must reach the South and North cell edges exactly.
+
+### Exact ConveyorUpgrader Visuals
+
+Create these direct children inside `ConveyorUpgrader.Visuals`:
+
+| Name | Class | Size | Position | Rotation | Color RGB | Material |
+|---|---|---:|---:|---:|---:|---|
+| `Foundation` | Part | `(4, 0.35, 4)` | `(0, 0.175, 0)` | `(0, 0, 0)` | `(40, 70, 90)` | Metal |
+| `Belt` | Part | `(2.8, 0.18, 4)` | `(0, 0.44, 0)` | `(0, 0, 0)` | `(24, 24, 27)` | SmoothPlastic |
+| `LeftRail` | Part | `(0.3, 0.45, 4)` | `(-1.65, 0.5, 0)` | `(0, 0, 0)` | `(90, 145, 170)` | Metal |
+| `RightRail` | Part | `(0.3, 0.45, 4)` | `(1.65, 0.5, 0)` | `(0, 0, 0)` | `(90, 145, 170)` | Metal |
+| `LeftPost` | Part | `(0.4, 2.8, 0.4)` | `(-1.55, 1.75, 0)` | `(0, 0, 0)` | `(45, 95, 120)` | Metal |
+| `RightPost` | Part | `(0.4, 2.8, 0.4)` | `(1.55, 1.75, 0)` | `(0, 0, 0)` | `(45, 95, 120)` | Metal |
+| `TopBeam` | Part | `(3.5, 0.4, 0.4)` | `(0, 3.15, 0)` | `(0, 0, 0)` | `(45, 95, 120)` | Metal |
+| `EnergyBeam` | Part | `(3.0, 0.12, 0.12)` | `(0, 1.4, 0)` | `(0, 0, 0)` | `(0, 225, 255)` | Neon |
+| `DirectionArrow` | Part | `(0.42, 0.08, 1.15)` | `(0, 0.58, 0.55)` | `(0, 0, 0)` | `(255, 220, 40)` | Neon |
+| `ArrowHeadLeft` | Part | `(0.28, 0.08, 0.9)` | `(-0.28, 0.58, -0.25)` | `(0, -45, 0)` | `(255, 220, 40)` | Neon |
+| `ArrowHeadRight` | Part | `(0.28, 0.08, 0.9)` | `(0.28, 0.58, -0.25)` | `(0, 45, 0)` | `(255, 220, 40)` | Neon |
+
+The cyan `EnergyBeam` crosses above the belt at the `EffectPoint`. It must not block the yellow travel arrow.
+
+Required Attachments under `Root`:
+
+| Name | Local Position |
+|---|---:|
+| `PathStart` | `(0, 0.9, 2)` |
+| `EffectPoint` | `(0, 0.9, 0)` |
+| `PathEnd` | `(0, 0.9, -2)` |
+
+The completed Upgrader should read as a Straight Conveyor passing through a cyan energy gate.
+
+---
+
+## 7. ConveyorCollectionBin Template
+
+Exact path:
+
+```text
+ReplicatedStorage.Assets.BuildItemTemplates.ConveyorCollectionBin
+```
+
+Contract:
+
+- Footprint: `1 x 1` cell.
+- Input direction at rotation 0: South.
+- No output connector.
+- All physical bin visuals must remain inside local X `-2 to 2` and local Z `-2 to 2`.
+- Leave the local East side visually readable as the future automation-worker side.
+- The Foundation, side walls, and low front lip reach the cell edges so the bin meets its incoming conveyor cleanly.
+
+### Exact ConveyorCollectionBin Visuals
+
+Create these direct children inside `ConveyorCollectionBin.Visuals`:
+
+| Name | Class | Size | Position | Rotation | Color RGB | Material |
+|---|---|---:|---:|---:|---:|---|
+| `Foundation` | Part | `(4, 0.35, 4)` | `(0, 0.175, 0)` | `(0, 0, 0)` | `(80, 52, 30)` | WoodPlanks |
+| `BinFloor` | Part | `(3.2, 0.25, 3.2)` | `(0, 0.48, 0)` | `(0, 0, 0)` | `(120, 76, 40)` | WoodPlanks |
+| `LeftWall` | Part | `(0.3, 1.8, 4)` | `(-1.85, 1.35, 0)` | `(0, 0, 0)` | `(120, 76, 40)` | WoodPlanks |
+| `RightWall` | Part | `(0.3, 1.8, 4)` | `(1.85, 1.35, 0)` | `(0, 0, 0)` | `(120, 76, 40)` | WoodPlanks |
+| `BackWall` | Part | `(3.4, 1.8, 0.3)` | `(0, 1.35, -1.85)` | `(0, 0, 0)` | `(120, 76, 40)` | WoodPlanks |
+| `FrontLip` | Part | `(3.4, 0.65, 0.4)` | `(0, 0.78, 1.8)` | `(0, 0, 0)` | `(120, 76, 40)` | WoodPlanks |
+| `BinGlow` | Part | `(2.7, 0.08, 2.7)` | `(0, 0.64, -0.1)` | `(0, 0, 0)` | `(255, 185, 70)` | Neon |
+
+Set `BinGlow.Transparency = 0.55`. It provides a visible storage area without filling the bin.
+
+Required Attachments under `Root`:
+
+| Name | Local Position |
+|---|---:|
+| `PathStart` | `(0, 1, 2)` |
+| `StorePoint` | `(0, 1, 0)` |
+| `AutomationStand` | `(3, 0, 0)` |
+
+`AutomationStand` intentionally sits outside the physical 1x1 footprint. It is only a future worker destination and must not have a visible or collidable Part.
+
+No `DirectionArrow` is required on the Collection Bin.
+
+The completed bin must have a low open South/front edge so arriving resources visibly enter it.
+
+---
+
+## 8. WorkerHome Template
+
+Exact path:
+
+```text
+ReplicatedStorage.Assets.BuildItemTemplates.WorkerHome
+```
+
+Contract:
+
+- Footprint: `1 x 1` cell.
+- Maximum footprint-level visual size: approximately `(3.5, any height, 3.5)`.
+- Leave visible padding between the home and the edges of the 4x4 cell.
+- This is the standalone home for general Wood, Stone, and Coal NPCs.
+
+### Exact WorkerHome Visuals
+
+Create these direct children inside `WorkerHome.Visuals`:
+
+| Name | Class | Size | Position | Rotation | Color RGB | Material |
+|---|---|---:|---:|---:|---:|---|
+| `Foundation` | Part | `(3.5, 0.3, 3.5)` | `(0, 0.15, 0)` | `(0, 0, 0)` | `(95, 62, 35)` | WoodPlanks |
+| `BackWall` | Part | `(3.2, 2.2, 0.25)` | `(0, 1.4, 1.45)` | `(0, 0, 0)` | `(140, 92, 50)` | WoodPlanks |
+| `LeftWall` | Part | `(0.25, 2.2, 2.8)` | `(-1.48, 1.4, 0.05)` | `(0, 0, 0)` | `(140, 92, 50)` | WoodPlanks |
+| `RightWall` | Part | `(0.25, 2.2, 2.8)` | `(1.48, 1.4, 0.05)` | `(0, 0, 0)` | `(140, 92, 50)` | WoodPlanks |
+| `Roof` | Part | `(3.5, 0.35, 3.5)` | `(0, 2.68, 0)` | `(0, 0, 0)` | `(145, 48, 38)` | Brick |
+| `BedBase` | Part | `(1.25, 0.35, 2.1)` | `(0.75, 0.48, 0.45)` | `(0, 0, 0)` | `(75, 48, 30)` | WoodPlanks |
+| `BedCover` | Part | `(1.15, 0.18, 1.45)` | `(0.75, 0.74, 0.6)` | `(0, 0, 0)` | `(70, 130, 190)` | Fabric |
+| `Pillow` | Part | `(1.0, 0.18, 0.42)` | `(0.75, 0.75, -0.25)` | `(0, 0, 0)` | `(235, 235, 225)` | Fabric |
+| `HomeSign` | Part | `(1.5, 0.65, 0.15)` | `(0, 2.0, -1.53)` | `(0, 0, 0)` | `(230, 185, 85)` | Wood |
+
+The open side faces local North / negative Z. `WorkerStand` at the Root is the position where the worker returns; keep the center floor clear around that point.
+
+Required Attachment under `Root`:
+
+| Name | Local Position |
+|---|---:|
+| `WorkerStand` | `(0, 0, 0)` |
+
+No `DirectionArrow` is required.
+
+---
+
+## 9. ConveyorDropper Template
+
+Exact path:
+
+```text
+ReplicatedStorage.Assets.BuildItemTemplates.ConveyorDropper
+```
+
+Contract:
+
+- Footprint: `3 x 1` cells.
+- `Root` is the center of local cell 1.
+- The footprint extends toward local East / positive X.
+- Local cell centers are:
+  - Cell 1, automation area: `(0, 0, 0)`
+  - Cell 2, dropper base: `(4, 0, 0)`
+  - Cell 3, shared output socket: `(8, 0, 0)`
+- Input connector: none.
+- Output direction at rotation 0: East.
+- A Straight Conveyor will be allowed to share local cell 3.
+- Do not place large solid Dropper visuals in local cell 3 that would obscure an overlapping Straight Conveyor.
+
+Allowed footprint bounds:
+
+- Local X: `-2 to 10`
+- Local Z: `-2 to 2`
+
+### Exact ConveyorDropper Visuals
+
+Create these direct children inside `ConveyorDropper.Visuals`:
+
+| Name | Class | Size | Position | Rotation | Color RGB | Material |
+|---|---|---:|---:|---:|---:|---|
+| `AutomationPad` | Part | `(3.5, 0.3, 3.5)` | `(0, 0.15, 0)` | `(0, 0, 0)` | `(95, 62, 35)` | WoodPlanks |
+| `AutomationRing` | Part, Shape `Cylinder` | `(0.12, 2.6, 2.6)` | `(0, 0.38, 0)` | `(0, 0, 90)` | `(255, 185, 70)` | Neon |
+| `DropperFoundation` | Part | `(4, 0.35, 4)` | `(4, 0.175, 0)` | `(0, 0, 0)` | `(55, 60, 65)` | Metal |
+| `DropperBody` | Part | `(2.8, 2.2, 2.8)` | `(4, 1.45, 0)` | `(0, 0, 0)` | `(75, 85, 95)` | Metal |
+| `TopHopper` | Part | `(3.4, 0.7, 3.4)` | `(4, 2.9, 0)` | `(0, 0, 0)` | `(105, 115, 125)` | Metal |
+| `HopperOpening` | Part | `(2.5, 0.08, 2.5)` | `(4, 3.29, 0)` | `(0, 0, 0)` | `(20, 20, 22)` | SmoothPlastic |
+| `RaisedChute` | Part | `(3.2, 0.7, 1.4)` | `(6.55, 2.0, 0)` | `(0, 0, -12)` | `(85, 95, 105)` | Metal |
+| `OutputNozzle` | Part | `(0.7, 1.0, 1.4)` | `(7.9, 1.45, 0)` | `(0, 0, 0)` | `(105, 115, 125)` | Metal |
+| `DirectionArrow` | Part | `(1.3, 0.08, 0.42)` | `(7.25, 2.42, 0)` | `(0, 0, 0)` | `(255, 220, 40)` | Neon |
+| `ArrowHeadNorth` | Part | `(0.9, 0.08, 0.28)` | `(7.85, 2.42, -0.28)` | `(0, 45, 0)` | `(255, 220, 40)` | Neon |
+| `ArrowHeadSouth` | Part | `(0.9, 0.08, 0.28)` | `(7.85, 2.42, 0.28)` | `(0, -45, 0)` | `(255, 220, 40)` | Neon |
+
+For `AutomationRing`, insert a normal `Part`, set `Shape = Cylinder`, then use the listed Size, Position, and Rotation.
+
+Critical output-socket clearance rule:
+
+- In local cell 3, X `6 to 10`, do not add any visual Part below Y `1.1`.
+- `OutputNozzle` ends above the conveyor item path.
+- Do not add a floor, belt, foundation, rail, or worker pad at local position `(8, 0, 0)`.
+- A complete Straight Conveyor template must be able to overlap cell 3 without visual collision.
+
+Required Attachments under `Root`:
+
+| Name | Local Position |
+|---|---:|
+| `AutomationStand` | `(0, 0, 0)` |
+| `DropPoint` | `(5.5, 1.2, 0)` |
+| `PathStart` | `(6, 0.9, 0)` |
+
+The completed Dropper should read left-to-right as worker automation pad, Dropper machine, then a raised output chute above the shared Straight Conveyor socket.
+
+---
+
+## 10. Objects That Must Not Be Deleted Yet
+
+Keep all of these intact:
+
+```text
+ReplicatedStorage.Assets.PlotTemplate.Machine
+ReplicatedStorage.Assets.PlotTemplate.WorkerHomes
+ReplicatedStorage.Assets.PlotTemplate.WorkerApproachPoints
+ReplicatedStorage.Assets.WorkerTemplates
+```
+
+Also keep:
+
+- Every current `MachinePart` CollectionService tag.
+- Every current machine attribute.
+- Every current machine marker and interaction Part.
+- Existing fixed worker-home Models.
+- Existing storage, sell crate, NPC purchase pad, and player spawn objects.
+- Old plot template versions such as `PlotTemplateV4` or `PlotTemplateV5`.
+
+Only the active `ReplicatedStorage.Assets.PlotTemplate` receives the new `BuildGrid`.
+
+---
+
+## 11. Final Explorer Hierarchy Check
+
+The relevant final hierarchy must look exactly like:
 
 ```text
 ReplicatedStorage
   Assets
+    BuildItemTemplates
+      ConveyorDropper
+        Root
+          AutomationStand
+          DropPoint
+          PathStart
+        Visuals
+          AutomationPad
+          AutomationRing
+          DropperFoundation
+          DropperBody
+          TopHopper
+          HopperOpening
+          RaisedChute
+          OutputNozzle
+          DirectionArrow
+          ArrowHeadNorth
+          ArrowHeadSouth
+        Markers
+      StraightConveyor
+        Root
+          PathStart
+          PathEnd
+        Visuals
+          Foundation
+          Belt
+          LeftRail
+          RightRail
+          DirectionArrow
+          ArrowHeadLeft
+          ArrowHeadRight
+        Markers
+      CornerConveyor
+        Root
+          PathStart
+          PathCorner
+          PathEnd
+        Visuals
+          Foundation
+          SouthBelt
+          EastBelt
+          SouthLeftRail
+          SouthRightRail
+          EastTopRail
+          EastBottomRail
+          DirectionArrow
+          ArrowHeadNorth
+          ArrowHeadSouth
+        Markers
+      ConveyorUpgrader
+        Root
+          PathStart
+          EffectPoint
+          PathEnd
+        Visuals
+          Foundation
+          Belt
+          LeftRail
+          RightRail
+          LeftPost
+          RightPost
+          TopBeam
+          EnergyBeam
+          DirectionArrow
+          ArrowHeadLeft
+          ArrowHeadRight
+        Markers
+      ConveyorCollectionBin
+        Root
+          PathStart
+          StorePoint
+          AutomationStand
+        Visuals
+          Foundation
+          BinFloor
+          LeftWall
+          RightWall
+          BackWall
+          FrontLip
+          BinGlow
+        Markers
+      WorkerHome
+        Root
+          WorkerStand
+        Visuals
+          Foundation
+          BackWall
+          LeftWall
+          RightWall
+          Roof
+          BedBase
+          BedCover
+          Pillow
+          HomeSign
+        Markers
     PlotTemplate
-      Ground
-      PlayerSpawn
-      Tree
-      Rock
-      NPCPurchasePad
-      SellCrate
-      StorageUpgradeButton
-      StorageBin
+      BuildGrid
+        Bounds
+        Blockers
+          WorkerHomes
+          LegacyMachine
+          NPCPurchasePad
+          StorageArea
+          SellCrate
+          PlayerSpawn
+        PlacedItems
+        RuntimeItems
+      Machine
       WorkerHomes
       WorkerApproachPoints
-        Tree
-        Rock
-        StorageBin
-        CoalProcessor
-      Machine
-        RuntimePieces
-        Markers
-          StorageOutput
-        Conveyor1
-          InteractionPart
-          Visuals
-            Foundation
-            Belt
-            LeftRail
-            RightRail
-          Markers
-            PathStart
-            PathEnd
-        Upgrader1
-          InteractionPart
-          Visuals
-            Base
-            LeftPost
-            RightPost
-            TopBeam
-          Markers
-            PathStart
-            EffectPoint
-            PathEnd
-        CoalProcessor
-          InteractionPart
-          Visuals
-            Walls
-            Blades
-          Markers
-            Input
-            Output
-        Conveyor2
-          InteractionPart
-          Visuals
-            Foundation
-            Belt
-            LeftRail
-            RightRail
-          Markers
-            PathStart
-            PathEnd
-        Upgrader2
-          InteractionPart
-          Visuals
-            Base
-            LeftPost
-            RightPost
-            TopBeam
-          Markers
-            PathStart
-            EffectPoint
-            PathEnd
-        CollectionPoint
-          InteractionPart
-          Visuals
-            Base
-            LeftWall
-            RightWall
-            BackWall
-            FrontLip
-          Markers
-            Input
 ```
 
-Required classes:
-
-- `Machine` is a `Folder`.
-- `RuntimePieces` is a `Folder` and starts empty.
-- `Machine.Markers` is a `Folder`.
-- Every named machine part is a `Model`.
-- Every machine part's `Visuals` and `Markers` children are `Folder` instances.
-- Every marker named in the hierarchy is a `Part`.
-- Every `InteractionPart` is a `Part`.
-- The existing `CoalProcessor.Walls` and `CoalProcessor.Blades` remain `Model` instances.
-
-## Shared Property Rules
-
-Apply these rules unless a later section explicitly gives a different value.
-
-### All Visual Machine Parts
-
-Every `BasePart` under a machine part's `Visuals` folder must use:
-
-| Property | Required value |
-| --- | --- |
-| `Anchored` | `true` |
-| `CanCollide` | `false` |
-| `CanTouch` | `false` |
-| `CanQuery` | `true` |
-| `CastShadow` | `true` |
-| `Transparency` | `0` |
-
-These parts are visual only. They do not physically move resources and do not decide gameplay.
-
-Runtime code will change visual transparency for locked and preview states. Author all visuals fully visible with `Transparency = 0`.
-
-Every newly created visual object listed in this document must be a standard `Part`, use `Shape = Block`, and use `Orientation = Vector3.new(0, 0, 0)`.
-
-### All Marker Parts
-
-Every Part under a `Markers` folder, including `Machine.Markers.StorageOutput`, must use:
-
-| Property | Required value |
-| --- | --- |
-| `Size` | `Vector3.new(0.5, 0.5, 0.5)` |
-| `Anchored` | `true` |
-| `CanCollide` | `false` |
-| `CanTouch` | `false` |
-| `CanQuery` | `false` |
-| `Transparency` | `1` |
-| `CastShadow` | `false` |
-
-Markers are invisible path coordinates. Do not add meshes, decals, prompts, scripts, or constraints to them.
-
-Keep marker orientation at `(0, 0, 0)`. Pieces move from higher Z values toward lower Z values.
-
-### All Interaction Parts
-
-Every machine model's `InteractionPart` must use:
-
-| Property | Required value |
-| --- | --- |
-| `Anchored` | `true` |
-| `CanCollide` | `false` |
-| `CanTouch` | `false` |
-| `CanQuery` | `true` |
-| `Transparency` | `1` |
-| `CastShadow` | `false` |
-
-`InteractionPart` is the invisible interaction/raycast volume and must be the `PrimaryPart` of its parent machine-part Model.
-
-Do not place an `InteractionPart` so that it overlaps another machine part's interaction volume.
-
-Every `InteractionPart` must use `Shape = Block` and `Orientation = Vector3.new(0, 0, 0)`.
-
-## Step 1: Create A Backup
-
-Before changing the live template:
-
-1. Duplicate `ReplicatedStorage.Assets.PlotTemplate`.
-2. Rename the duplicate exactly `PlotTemplateBeforeConveyor`.
-3. Leave `PlotTemplateBeforeConveyor` under `ReplicatedStorage.Assets`.
-4. Make all remaining changes only to `ReplicatedStorage.Assets.PlotTemplate`.
-
-Do not rename `PlotTemplate`. Runtime code still requires that exact name.
-
-## Step 2: Create The Machine Folders
-
-Under `ReplicatedStorage.Assets.PlotTemplate`:
-
-1. Create a `Folder` named exactly `Machine`.
-2. Under `Machine`, create a `Folder` named exactly `RuntimePieces`.
-3. Under `Machine`, create a `Folder` named exactly `Markers`.
-4. Under `Machine.Markers`, create a `Part` named exactly `StorageOutput`.
-5. Apply the shared marker properties to `StorageOutput`.
-6. Set `StorageOutput.Position` to exactly `Vector3.new(0, 1.5, 1.5)`.
-
-`RuntimePieces` must remain empty. Runtime code will place visible Wood, Stone, and Coal pieces there.
-
-`StorageOutput` is the machine withdrawal/start location. It visually represents raw Wood and Stone leaving the existing Storage Bin. Do not move or rename the existing `StorageBin`.
-
-## Step 3: Create Conveyor 1
-
-Under `PlotTemplate.Machine`, create a `Model` named exactly `Conveyor1`.
-
-Set these model details:
-
-| Setting | Required value |
-| --- | --- |
-| CollectionService tag | `MachinePart` |
-| Attribute `MachinePartId` | String: `Conveyor1` |
-| Attribute `InitialMachineState` | String: `Locked` |
-| Attribute `PurchaseCost` | Number: `100` |
-| Attribute `Upgradeable` | Boolean: `true` |
-
-Do not add the `Interactable` tag. Runtime code will add it only after the player owns a Stone NPC.
-
-Create:
-
-- A `Folder` named `Visuals`.
-- A `Folder` named `Markers`.
-- A `Part` named `InteractionPart`.
-
-Set `Conveyor1.PrimaryPart` to `InteractionPart`.
-
-### Conveyor 1 Visual Parts
-
-Create these Parts under `Conveyor1.Visuals`:
-
-| Name | Size | Position | Color | Material |
-| --- | --- | --- | --- | --- |
-| `Foundation` | `(4, 0.35, 7)` | `(0, 0.175, -2)` | `(55, 55, 55)` | `Metal` |
-| `Belt` | `(3.2, 0.25, 7)` | `(0, 0.475, -2)` | `(25, 25, 25)` | `SmoothPlastic` |
-| `LeftRail` | `(0.25, 0.7, 7)` | `(-1.75, 0.65, -2)` | `(120, 120, 120)` | `Metal` |
-| `RightRail` | `(0.25, 0.7, 7)` | `(1.75, 0.65, -2)` | `(120, 120, 120)` | `Metal` |
-
-Colors are RGB values. Apply the shared visual properties to all four parts.
-
-### Conveyor 1 Markers
-
-Create these Parts under `Conveyor1.Markers`:
-
-| Name | Position |
-| --- | --- |
-| `PathStart` | `(0, 1.5, 1.5)` |
-| `PathEnd` | `(0, 1.5, -5.5)` |
-
-Apply the shared marker properties.
-
-`Conveyor1.Markers.PathStart` intentionally occupies the same world position as `Machine.Markers.StorageOutput`.
-
-### Conveyor 1 Interaction Part
-
-Set:
-
-| Property | Value |
-| --- | --- |
-| `Size` | `(4, 1.5, 7)` |
-| `Position` | `(0, 0.75, -2)` |
-
-Apply the shared interaction properties.
-
-## Step 4: Create Upgrader 1
-
-Under `PlotTemplate.Machine`, create a `Model` named exactly `Upgrader1`.
-
-Set:
-
-| Setting | Required value |
-| --- | --- |
-| CollectionService tag | `MachinePart` |
-| Attribute `MachinePartId` | String: `Upgrader1` |
-| Attribute `InitialMachineState` | String: `Locked` |
-| Attribute `PurchaseCost` | Number: `150` |
-| Attribute `Upgradeable` | Boolean: `true` |
-
-Create `Visuals`, `Markers`, and `InteractionPart`. Set `Upgrader1.PrimaryPart` to `InteractionPart`.
-
-### Upgrader 1 Visual Parts
-
-Create these Parts under `Upgrader1.Visuals`:
-
-| Name | Size | Position | Color | Material |
-| --- | --- | --- | --- | --- |
-| `Base` | `(4, 0.35, 2)` | `(0, 0.175, -6.5)` | `(65, 65, 80)` | `Metal` |
-| `LeftPost` | `(0.45, 4, 0.45)` | `(-1.65, 2, -6.5)` | `(70, 120, 255)` | `Neon` |
-| `RightPost` | `(0.45, 4, 0.45)` | `(1.65, 2, -6.5)` | `(70, 120, 255)` | `Neon` |
-| `TopBeam` | `(3.75, 0.45, 0.45)` | `(0, 3.8, -6.5)` | `(70, 120, 255)` | `Neon` |
-
-Apply the shared visual properties.
-
-### Upgrader 1 Markers
-
-| Name | Position |
-| --- | --- |
-| `PathStart` | `(0, 1.5, -5.5)` |
-| `EffectPoint` | `(0, 1.5, -6.5)` |
-| `PathEnd` | `(0, 1.5, -7.5)` |
-
-Apply the shared marker properties.
-
-### Upgrader 1 Interaction Part
-
-| Property | Value |
-| --- | --- |
-| `Size` | `(4, 4, 2)` |
-| `Position` | `(0, 2, -6.5)` |
-
-Apply the shared interaction properties.
-
-## Step 5: Reuse And Prepare The Existing Coal Processor
-
-Do not delete the existing `ReplicatedStorage.Assets.PlotTemplate.CoalProcessor` model.
-
-Perform these changes last, after all newly created machine objects have been validated:
-
-1. Drag the existing `PlotTemplate.CoalProcessor` model into `PlotTemplate.Machine`.
-2. Confirm its new path is exactly `ReplicatedStorage.Assets.PlotTemplate.Machine.CoalProcessor`.
-3. Under `Machine.CoalProcessor`, create a `Folder` named exactly `Visuals`.
-4. Move the existing `Walls` model into `CoalProcessor.Visuals`.
-5. Move the existing `Blades` model into `CoalProcessor.Visuals`.
-6. Under `Machine.CoalProcessor`, create a `Folder` named exactly `Markers`.
-7. Under `Machine.CoalProcessor`, create a `Part` named exactly `InteractionPart`.
-8. Set `CoalProcessor.PrimaryPart` to the new `InteractionPart`.
-
-Do not visually move, rotate, resize, or rebuild the existing processor. Its bounding center must remain approximately `(0.15, 2.5, -11.9)`.
-
-Apply the shared visual properties to every `BasePart` descendant under `CoalProcessor.Visuals`, including all parts nested below `Walls` and `Blades`.
-
-Set these model details:
-
-| Setting | Required value |
-| --- | --- |
-| CollectionService tag | `MachinePart` |
-| Attribute `MachinePartId` | String: `CoalProcessor` |
-| Attribute `InitialMachineState` | String: `Locked` |
-| Attribute `PurchaseCost` | Number: `250` |
-| Attribute `Upgradeable` | Boolean: `true` |
-
-### Coal Processor Markers
-
-Create these Parts under `CoalProcessor.Markers`:
-
-| Name | Position |
-| --- | --- |
-| `Input` | `(0, 1.5, -9.6)` |
-| `Output` | `(0, 1.5, -14.2)` |
-
-Apply the shared marker properties.
-
-The `Input` marker is where raw pieces disappear into the processor buffer. The `Output` marker is where processed Coal appears.
-
-### Coal Processor Interaction Part
-
-| Property | Value |
-| --- | --- |
-| `Size` | `(7.7, 4.9, 4.2)` |
-| `Position` | `(0.15, 2.5, -11.9)` |
-
-Apply the shared interaction properties.
-
-### Coal Processor Safety
-
-- Leave `WorkerApproachPoints.CoalProcessor` exactly where it is for now.
-- Leave `ReplicatedStorage.Assets.WorkerTemplates.CoalProcessor` exactly where it is for now.
-- Do not add a `ProximityPrompt` to the processor.
-- Do not add input-buffer values or processing attributes in Studio. Runtime and persisted player data will own them.
-- The source game will temporarily fail its old plot validation after this move and before code implementation. That is expected; make this move only when you are ready to confirm all world changes.
-
-## Step 6: Create Conveyor 2
-
-Under `PlotTemplate.Machine`, create a `Model` named exactly `Conveyor2`.
-
-Set:
-
-| Setting | Required value |
-| --- | --- |
-| CollectionService tag | `MachinePart` |
-| Attribute `MachinePartId` | String: `Conveyor2` |
-| Attribute `InitialMachineState` | String: `Locked` |
-| Attribute `PurchaseCost` | Number: `200` |
-| Attribute `Upgradeable` | Boolean: `true` |
-
-Create `Visuals`, `Markers`, and `InteractionPart`. Set `Conveyor2.PrimaryPart` to `InteractionPart`.
-
-### Conveyor 2 Visual Parts
-
-Create these Parts under `Conveyor2.Visuals`:
-
-| Name | Size | Position | Color | Material |
-| --- | --- | --- | --- | --- |
-| `Foundation` | `(4, 0.35, 7)` | `(0, 0.175, -17.7)` | `(55, 55, 55)` | `Metal` |
-| `Belt` | `(3.2, 0.25, 7)` | `(0, 0.475, -17.7)` | `(25, 25, 25)` | `SmoothPlastic` |
-| `LeftRail` | `(0.25, 0.7, 7)` | `(-1.75, 0.65, -17.7)` | `(120, 120, 120)` | `Metal` |
-| `RightRail` | `(0.25, 0.7, 7)` | `(1.75, 0.65, -17.7)` | `(120, 120, 120)` | `Metal` |
-
-Apply the shared visual properties.
-
-### Conveyor 2 Markers
-
-| Name | Position |
-| --- | --- |
-| `PathStart` | `(0, 1.5, -14.2)` |
-| `PathEnd` | `(0, 1.5, -21.2)` |
-
-Apply the shared marker properties.
-
-### Conveyor 2 Interaction Part
-
-| Property | Value |
-| --- | --- |
-| `Size` | `(4, 1.5, 7)` |
-| `Position` | `(0, 0.75, -17.7)` |
-
-Apply the shared interaction properties.
-
-## Step 7: Create Upgrader 2
-
-Under `PlotTemplate.Machine`, create a `Model` named exactly `Upgrader2`.
-
-Set:
-
-| Setting | Required value |
-| --- | --- |
-| CollectionService tag | `MachinePart` |
-| Attribute `MachinePartId` | String: `Upgrader2` |
-| Attribute `InitialMachineState` | String: `Locked` |
-| Attribute `PurchaseCost` | Number: `300` |
-| Attribute `Upgradeable` | Boolean: `true` |
-
-Create `Visuals`, `Markers`, and `InteractionPart`. Set `Upgrader2.PrimaryPart` to `InteractionPart`.
-
-### Upgrader 2 Visual Parts
-
-Create these Parts under `Upgrader2.Visuals`:
-
-| Name | Size | Position | Color | Material |
-| --- | --- | --- | --- | --- |
-| `Base` | `(4, 0.35, 2)` | `(0, 0.175, -22.2)` | `(80, 65, 65)` | `Metal` |
-| `LeftPost` | `(0.45, 4, 0.45)` | `(-1.65, 2, -22.2)` | `(255, 125, 50)` | `Neon` |
-| `RightPost` | `(0.45, 4, 0.45)` | `(1.65, 2, -22.2)` | `(255, 125, 50)` | `Neon` |
-| `TopBeam` | `(3.75, 0.45, 0.45)` | `(0, 3.8, -22.2)` | `(255, 125, 50)` | `Neon` |
-
-Apply the shared visual properties.
-
-### Upgrader 2 Markers
-
-| Name | Position |
-| --- | --- |
-| `PathStart` | `(0, 1.5, -21.2)` |
-| `EffectPoint` | `(0, 1.5, -22.2)` |
-| `PathEnd` | `(0, 1.5, -23.2)` |
-
-Apply the shared marker properties.
-
-### Upgrader 2 Interaction Part
-
-| Property | Value |
-| --- | --- |
-| `Size` | `(4, 4, 2)` |
-| `Position` | `(0, 2, -22.2)` |
-
-Apply the shared interaction properties.
-
-## Step 8: Create The Collection Point
-
-Under `PlotTemplate.Machine`, create a `Model` named exactly `CollectionPoint`.
-
-Set:
-
-| Setting | Required value |
-| --- | --- |
-| CollectionService tag | `MachinePart` |
-| Attribute `MachinePartId` | String: `CollectionPoint` |
-| Attribute `InitialMachineState` | String: `Locked` |
-| Attribute `PurchaseCost` | Number: `400` |
-| Attribute `Upgradeable` | Boolean: `true` |
-| Attribute `Capacity` | Number: `50` |
-
-Create `Visuals`, `Markers`, and `InteractionPart`. Set `CollectionPoint.PrimaryPart` to `InteractionPart`.
-
-### Collection Point Visual Parts
-
-Create these Parts under `CollectionPoint.Visuals`:
-
-| Name | Size | Position | Color | Material |
-| --- | --- | --- | --- | --- |
-| `Base` | `(5, 0.4, 5)` | `(0, 0.2, -26)` | `(50, 50, 50)` | `Metal` |
-| `LeftWall` | `(0.4, 2, 5)` | `(-2.3, 1.2, -26)` | `(90, 90, 90)` | `Metal` |
-| `RightWall` | `(0.4, 2, 5)` | `(2.3, 1.2, -26)` | `(90, 90, 90)` | `Metal` |
-| `BackWall` | `(5, 2, 0.4)` | `(0, 1.2, -28.3)` | `(90, 90, 90)` | `Metal` |
-| `FrontLip` | `(5, 0.8, 0.4)` | `(0, 0.6, -23.7)` | `(90, 90, 90)` | `Metal` |
-
-Apply the shared visual properties.
-
-The Collection Point is a manual collection area with upgradeable capacity. Do not add an automated collection NPC, worker home, approach point, touch-to-collect script, or ProximityPrompt.
-
-### Collection Point Marker
-
-Create `CollectionPoint.Markers.Input` at position `(0, 1.5, -23.5)` and apply the shared marker properties.
-
-This is where a Coal piece is deposited into the Collection Point's persisted stored value.
-
-### Collection Point Interaction Part
-
-| Property | Value |
-| --- | --- |
-| `Size` | `(5, 2.5, 5)` |
-| `Position` | `(0, 1.25, -26)` |
-
-Apply the shared interaction properties.
-
-## Step 9: Validate Model States And Preview Behavior
-
-Do not create separate preview or ghost copies.
-
-Each actual model under `PlotTemplate.Machine` is also its future ghost model. Runtime code will change the same model between:
-
-- `Locked`: visuals hidden, collision disabled, interaction disabled.
-- `Preview`: visuals approximately 20% visible using `Transparency = 0.8`, dark outline added by code, interaction enabled only for the next purchasable part.
-- `Built`: authored appearance restored.
-- `Active`: built and participating in the complete machine chain.
-
-The required strict purchase order is:
-
-```text
-Conveyor1
-Upgrader1
-CoalProcessor
-Conveyor2
-Upgrader2
-CollectionPoint
-```
-
-Do not manually set any model to ghost transparency. Keep all authored visual parts at `Transparency = 0`.
-
-Do not add a `Highlight`; runtime code will create preview outlines.
-
-## Step 10: Tags And Attributes Audit
-
-Use Roblox Studio's Tag Editor to add exactly one manual CollectionService tag:
-
-| Path | Required tag |
-| --- | --- |
-| `PlotTemplate.Machine.Conveyor1` | `MachinePart` |
-| `PlotTemplate.Machine.Upgrader1` | `MachinePart` |
-| `PlotTemplate.Machine.CoalProcessor` | `MachinePart` |
-| `PlotTemplate.Machine.Conveyor2` | `MachinePart` |
-| `PlotTemplate.Machine.Upgrader2` | `MachinePart` |
-| `PlotTemplate.Machine.CollectionPoint` | `MachinePart` |
-
-Do not add `MachinePart` to visual parts, marker parts, folders, Storage Bin, or the Machine folder.
-
-Do not manually add any of these runtime-owned tags:
-
-- `Interactable`
-- `MachinePreview`
-- `MachineBuilt`
-- `MachineActive`
-- `MovingResourcePiece`
-
-Confirm the exact model attributes:
-
-| Model | `MachinePartId` | `InitialMachineState` | `PurchaseCost` | `Upgradeable` | Extra |
-| --- | --- | --- | ---: | --- | --- |
-| `Conveyor1` | `Conveyor1` | `Locked` | `100` | `true` | None |
-| `Upgrader1` | `Upgrader1` | `Locked` | `150` | `true` | None |
-| `CoalProcessor` | `CoalProcessor` | `Locked` | `250` | `true` | None |
-| `Conveyor2` | `Conveyor2` | `Locked` | `200` | `true` | None |
-| `Upgrader2` | `Upgrader2` | `Locked` | `300` | `true` | None |
-| `CollectionPoint` | `CollectionPoint` | `Locked` | `400` | `true` | `Capacity = 50` |
-
-Attribute types must match the table. Do not enter numeric values as strings.
-
-Do not author levels, multipliers, speeds, processing state, buffers, stored Coal, ownership, or built-state attributes. Those values belong to persisted player data and runtime state. Collection Point capacity starts at `50` and source config increases it by `25` per upgrade level.
-
-## Step 11: Objects To Keep And Objects To Leave Alone
-
-Keep these existing objects exactly where they are:
-
-```text
-ReplicatedStorage.Assets.PlotTemplate.StorageBin
-ReplicatedStorage.Assets.PlotTemplate.StorageUpgradeButton
-ReplicatedStorage.Assets.PlotTemplate.NPCPurchasePad
-ReplicatedStorage.Assets.PlotTemplate.Tree
-ReplicatedStorage.Assets.PlotTemplate.Rock
-ReplicatedStorage.Assets.PlotTemplate.SellCrate
-ReplicatedStorage.Assets.PlotTemplate.WorkerHomes
-ReplicatedStorage.Assets.PlotTemplate.WorkerApproachPoints
-ReplicatedStorage.Assets.WorkerTemplates.Wood
-ReplicatedStorage.Assets.WorkerTemplates.Stone
-ReplicatedStorage.Assets.WorkerTemplates.CoalProcessor
-```
-
-Keep `PlotTemplate.WorkerApproachPoints.CoalProcessor` for now, even though the new source code will stop using it.
-
-Do not manually delete existing saved-data fields or source files. The source implementation will bump the datastore key and remove the Coal NPC role safely.
-
-Do not modify the existing Wood and Stone NPC routes. Confirm the new machine does not overlap:
-
-- `WorkerApproachPoints.StorageBin`
-- The route from Rock to Storage Bin
-- The route from Tree to Storage Bin
-- NPC homes
-- `NPCPurchasePad`
-- `PlayerSpawn`
-
-Leave all existing `ProximityPrompt` instances alone until source code is ready. Do not add new prompts. Existing runtime code disables old prompts.
-
-## Step 12: Manual Layout And Marker Test
-
-Perform this test in Edit mode with marker transparency temporarily changed only when needed:
-
-1. Temporarily set every machine marker's `Transparency` to `0.5`.
-2. Confirm all path markers form a southbound line in this order:
-   - `Machine.Markers.StorageOutput`
-   - `Conveyor1.Markers.PathStart`
-   - `Conveyor1.Markers.PathEnd`
-   - `Upgrader1.Markers.PathStart`
-   - `Upgrader1.Markers.EffectPoint`
-   - `Upgrader1.Markers.PathEnd`
-   - `CoalProcessor.Markers.Input`
-   - `CoalProcessor.Markers.Output`
-   - `Conveyor2.Markers.PathStart`
-   - `Conveyor2.Markers.PathEnd`
-   - `Upgrader2.Markers.PathStart`
-   - `Upgrader2.Markers.EffectPoint`
-   - `Upgrader2.Markers.PathEnd`
-   - `CollectionPoint.Markers.Input`
-3. Confirm no marker is inside an opaque visual part.
-4. Confirm every marker is approximately `1.5` studs above the Ground surface.
-5. Confirm Conveyor 1 visually starts near the Storage Bin.
-6. Confirm the existing Coal Processor remains centered at approximately `(0.15, 2.5, -11.9)`.
-7. Confirm Conveyor 2 begins at the processor's south/output side.
-8. Confirm Coal can visually travel into the open side of the Collection Point.
-9. Restore every marker's `Transparency` to `1`.
-
-Then perform this collision and access test:
-
-1. Confirm every new machine visual part is anchored.
-2. Confirm every new machine visual part has `CanCollide = false`.
-3. Confirm every marker has `CanQuery = false`.
-4. Confirm every `InteractionPart` has `CanQuery = true`.
-5. Walk a test character beside every machine part.
-6. Confirm the player can stand within approximately 10 studs of every model.
-7. Confirm the machine does not prevent access to the Storage Bin, NPC Purchase Pad, or Sell Crate.
-8. Confirm Wood and Stone NPC approach points remain unobstructed.
-
-## Completion Checklist
-
-Before telling Codex that the world changes are complete, verify every item:
-
-- [ ] I edited `ReplicatedStorage.Assets.PlotTemplate`, not a runtime clone.
-- [ ] I made no manual changes under `Workspace`.
-- [ ] I created no Attachment instances or physical conveyor constraints.
-- [ ] `ReplicatedStorage.Assets.PlotTemplateBeforeConveyor` exists as a backup.
-- [ ] `PlotTemplate.Machine` exists and is a Folder.
-- [ ] `Machine.RuntimePieces` exists, is a Folder, and is empty.
-- [ ] `Machine.Markers.StorageOutput` exists at `(0, 1.5, 1.5)`.
-- [ ] `Conveyor1`, `Upgrader1`, `CoalProcessor`, `Conveyor2`, `Upgrader2`, and `CollectionPoint` exist as Models under `Machine`.
-- [ ] Every machine-part Model has `Visuals`, `Markers`, and `InteractionPart`.
-- [ ] Every machine-part Model uses `InteractionPart` as its `PrimaryPart`.
-- [ ] All hierarchy names and capitalization exactly match this document.
-- [ ] All six machine-part Models have the `MachinePart` tag.
-- [ ] No child parts or folders have the `MachinePart` tag.
-- [ ] No machine object has been manually given the `Interactable` tag.
-- [ ] All six machine-part Models have the exact required attributes and attribute types.
-- [ ] Every visual BasePart is anchored, non-collidable, non-touchable, queryable, and authored at transparency `0`.
-- [ ] Every marker is anchored, invisible, non-collidable, non-touchable, and non-queryable.
-- [ ] Every InteractionPart is anchored, invisible, non-collidable, non-touchable, and queryable.
-- [ ] Conveyor 1 contains the exact four named visual parts and two markers.
-- [ ] Upgrader 1 contains the exact four named visual parts and three markers.
-- [ ] The existing Coal Processor was moved under `Machine`, not deleted or rebuilt.
-- [ ] The existing Coal Processor's `Walls` and `Blades` are under `CoalProcessor.Visuals`.
-- [ ] The Coal Processor remains at its original world location.
-- [ ] The Coal Processor has exact `Input` and `Output` markers.
-- [ ] Conveyor 2 contains the exact four named visual parts and two markers.
-- [ ] Upgrader 2 contains the exact four named visual parts and three markers.
-- [ ] Collection Point contains the exact five named visual parts and `Input` marker.
-- [ ] Collection Point has Number attribute `Capacity = 50`.
-- [ ] No duplicate preview/ghost models were created.
-- [ ] No Highlights, scripts, touch scripts, or new ProximityPrompts were added.
-- [ ] Existing Storage Bin, Storage Upgrade Button, NPC Purchase Pad, Tree, Rock, Sell Crate, Worker Homes, and Worker Approach Points remain.
-- [ ] Wood and Stone worker templates remain unchanged.
-- [ ] The old Coal Processor worker template remains for now.
-- [ ] `WorkerApproachPoints.CoalProcessor` remains for now.
-- [ ] The marker path was visually checked in the correct order.
-- [ ] The machine does not obstruct Wood or Stone NPC routes.
-- [ ] Every machine part is reachable by the player for direct interaction.
-- [ ] All temporarily visible markers were restored to `Transparency = 1`.
-- [ ] The place was saved after completing the changes.
-
-Once every item is complete, tell Codex: **The conveyor world changes are complete.**
-
-Codex must then inspect the resulting Studio hierarchy before implementing source code.
+Every visual named above is required. Extra decorative BaseParts under each `Visuals` Folder are allowed only when they remain inside the stated footprint and do not interfere with marker paths or the Dropper output socket.
+
+---
+
+## 12. Final Verification Checklist
+
+Do not confirm completion until every item passes.
+
+### Plot And Grid
+
+- [ ] One duplicate `Plot08` was renamed to `Plot09`; all ten spawn names are unique.
+- [ ] The new hierarchy is under the active `ReplicatedStorage.Assets.PlotTemplate`, not an old template version.
+- [ ] `BuildGrid.Bounds` is exactly at `(0, 0.05, 0)` with Size `(80, 0.1, 80)`.
+- [ ] `Bounds` has tag `BuildGridBounds`.
+- [ ] `Bounds` has Number Attribute `CellSize = 4`.
+- [ ] All six blockers exist with exact names, positions, sizes, and tag `BuildGridBlocker`.
+- [ ] All grid Parts are anchored, invisible, non-colliding, non-touchable, and non-queryable.
+- [ ] `PlacedItems` is an empty Folder.
+- [ ] `RuntimeItems` is an empty Folder.
+
+### Templates
+
+- [ ] `BuildItemTemplates` contains exactly the six required template Models.
+- [ ] Every template has tag `BuildItemTemplate`.
+- [ ] Every template has the correct String Attribute `BuildItemId`.
+- [ ] Every template has Number Attribute `TemplateVersion = 1`.
+- [ ] Every template has a direct `Root`, `Visuals`, and `Markers` child.
+- [ ] Every template's `PrimaryPart` is its `Root`.
+- [ ] Every template pivot exactly matches its `Root`.
+- [ ] Every `Root` is at `(0, 0, 0)`, rotation `(0, 0, 0)`, and is invisible/non-colliding.
+- [ ] Every required Attachment exists directly under its template's `Root`.
+- [ ] Every required Attachment has the exact local Position listed above.
+- [ ] Every required visual Part listed in sections 4-9 and the final hierarchy exists with the exact Class/Shape, Size, Position, Rotation, Color, and Material.
+- [ ] Every visual BasePart is anchored.
+- [ ] Every visual BasePart has `CanCollide`, `CanTouch`, and `CanQuery` set to `false`.
+- [ ] Straight, Corner, Upgrader, and Dropper each have `Visuals.DirectionArrow`.
+- [ ] Every arrow matches its template's base output direction.
+- [ ] Every 1x1 physical model fits within one 4x4 cell.
+- [ ] Dropper physical visuals fit within its 3x1 footprint and leave the output socket usable.
+- [ ] Existing Machine, WorkerHomes, WorkerApproachPoints, and WorkerTemplates still exist.
+
+### Manual Visual Check
+
+- [ ] Temporarily set `Bounds` Transparency to `0.75`; confirm it covers the Ground exactly, then restore it to `1`.
+- [ ] Temporarily set blocker Transparency to `0.5`; confirm each permanent object is covered, then restore all blockers to `1`.
+- [ ] Rotate a duplicate of each template by `90`, `180`, and `270` degrees; confirm pivots remain centered and arrows rotate correctly.
+- [ ] Delete all temporary duplicates after the visual check.
+
+After all checks pass, save the place and confirm that the world changes are complete. Source implementation must wait for that confirmation.

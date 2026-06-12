@@ -109,7 +109,9 @@ function PlotService.Claim(player: Player): Model?
 	Local.spawnsByPlayer[player] = spawn
 	Local.ownersBySpawn[spawn] = player
 
-	plot:PivotTo(spawn.CFrame)
+	local ground = getPlotPart(plot, PlotConfig.Paths.Ground)
+	local groundToPivot = ground.CFrame:ToObjectSpace(plot:GetPivot())
+	plot:PivotTo(spawn.CFrame * groundToPivot)
 	plot.Parent = playerPlots
 
 	local maid = Maid.New(nil)

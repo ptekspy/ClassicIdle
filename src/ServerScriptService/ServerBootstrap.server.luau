@@ -11,6 +11,8 @@ local DisplayService = require(Services:WaitForChild("DisplayService"))
 local InteractionService = require(Services:WaitForChild("InteractionService"))
 local PlotService = require(Services:WaitForChild("PlotService"))
 local QuestService = require(Services:WaitForChild("QuestService"))
+local ResourceNodeGeneratorService = require(Services:WaitForChild("ResourceNodeGeneratorService"))
+local ResourceNodeService = require(Services:WaitForChild("ResourceNodeService"))
 local WorldService = require(Services:WaitForChild("WorldService"))
 
 local function onPlayerAdded(player: Player)
@@ -42,6 +44,8 @@ local function onPlayerRemoving(player: Player)
 end
 
 InteractionService.Start(WorldService.HandleInteraction)
+ResourceNodeService.Start()
+ResourceNodeGeneratorService.Start()
 WorldService.Start()
 QuestService.Start()
 

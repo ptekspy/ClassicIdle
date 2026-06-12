@@ -3,11 +3,12 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ProfileStore = require(ReplicatedStorage.Packages.ProfileStore)
+local ResourceConfig = require(ReplicatedStorage.Resource.Config)
 local Types = require(script.Types)
 local DEFAULT_DATA = require(script.Default)
 
 local Local = {
-	STORE_NAME = "IdleGame_PlayerData_v8",
+	STORE_NAME = "IdleGame_PlayerData_v9",
 	profiles = {} :: { [Player]: Types.PlayerProfile },
 	states = {} :: { [Player]: Types.SessionState },
 }
@@ -15,6 +16,35 @@ local Local = {
 Local.store = ProfileStore.New(Local.STORE_NAME, DEFAULT_DATA)
 
 local DataService = {}
+
+local function migrate(data: any)
+	if typeof(data.Resources) ~= "table" then
+		data.Resources = {}
+	end
+	if typeof(data.DataVersion) ~= "number" or data.DataVersion < 1 then
+		for _, resourceId in ResourceConfig.Order do
+			local legacyAmount = data[resourceId]
+			if typeof(legacyAmount) == "number" and data.Resources[resourceId] == nil then
+				data.Resources[resourceId] = legacyAmount
+			end
+		end
+		data.DataVersion = 1
+	end
+	for _, resourceId in ResourceConfig.Order do
+		if typeof(data.Resources[resourceId]) ~= "number" then
+			data.Resources[resourceId] = 0
+		end
+	end
+	if typeof(data.Factory) ~= "table" then
+		data.Factory = { Inventory = { WorkerHome = 1 }, PlacedItems = {} }
+	end
+	if typeof(data.Factory.Inventory) ~= "table" then
+		data.Factory.Inventory = {}
+	end
+	if typeof(data.Factory.PlacedItems) ~= "table" then
+		data.Factory.PlacedItems = {}
+	end
+end
 
 function DataService.Get(player: Player): Types.PlayerData
 	local profile = Local.profiles[player]
@@ -72,6 +102,7 @@ function DataService.Load(player: Player): boolean
 	end
 
 	profile:AddUserId(player.UserId)
+	migrate(profile.Data)
 	profile:Reconcile()
 
 	profile.OnSessionEnd:Connect(function()
