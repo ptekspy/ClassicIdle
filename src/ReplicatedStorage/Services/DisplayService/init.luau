@@ -2,6 +2,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DataService = require(script.Parent.DataService)
+local PlayerDataReplicaService = require(script.Parent.PlayerDataReplicaService)
 local EconomyService = require(script.Parent.EconomyService)
 local PlotConfig = require(ReplicatedStorage.Plot.Config)
 local ResourceConfig = require(ReplicatedStorage.Resource.Config)
@@ -108,6 +109,8 @@ function DisplayService.UpdateLeaderstats(player: Player)
 	if xp and xp:IsA("IntValue") then
 		xp.Value = data.XP
 	end
+
+	PlayerDataReplicaService.Sync(player)
 end
 
 function DisplayService.UpdateStorageDisplay(player: Player, plot: Model)

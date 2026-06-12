@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Services = ReplicatedStorage:WaitForChild("Services")
 
 local DataService = require(Services:WaitForChild("DataService"))
+local PlayerDataReplicaService = require(Services:WaitForChild("PlayerDataReplicaService"))
 local DisplayService = require(Services:WaitForChild("DisplayService"))
 local InteractionService = require(Services:WaitForChild("InteractionService"))
 local PlotService = require(Services:WaitForChild("PlotService"))
@@ -20,9 +21,12 @@ local function onPlayerAdded(player: Player)
 		return
 	end
 
+	PlayerDataReplicaService.Create(player)
+
 	local plot = PlotService.Claim(player)
 
 	if not plot then
+		PlayerDataReplicaService.Destroy(player)
 		DataService.Release(player)
 		player:Kick("No plots are currently available.")
 		return
@@ -40,6 +44,7 @@ end
 local function onPlayerRemoving(player: Player)
 	WorldService.CleanupPlayer(player)
 	PlotService.Release(player)
+	PlayerDataReplicaService.Destroy(player)
 	DataService.Release(player)
 end
 
