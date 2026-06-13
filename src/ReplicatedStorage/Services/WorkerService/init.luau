@@ -20,6 +20,7 @@ type RuntimeWorker = {
 	Active: boolean,
 	ActionTrack: AnimationTrack,
 	IdleTrack: AnimationTrack,
+	WalkTrack: AnimationTrack,
 	Model: Model,
 	NPC: WorkerTypes.NPCData,
 	Player: Player,
@@ -55,6 +56,26 @@ local function setState(worker: RuntimeWorker, state: string)
 	worker.Model:SetAttribute("WorkerState", state)
 	worker.Model:SetAttribute("CargoType", worker.NPC.CargoType)
 	worker.Model:SetAttribute("CargoAmount", worker.NPC.CargoAmount)
+end
+
+local function playIdle(worker: RuntimeWorker)
+	if worker.WalkTrack.IsPlaying then
+		worker.WalkTrack:Stop(0.15)
+	end
+
+	if not worker.IdleTrack.IsPlaying then
+		worker.IdleTrack:Play(0.2)
+	end
+end
+
+local function playWalk(worker: RuntimeWorker)
+	if worker.IdleTrack.IsPlaying then
+		worker.IdleTrack:Stop(0.15)
+	end
+
+	if not worker.WalkTrack.IsPlaying then
+		worker.WalkTrack:Play(0.15)
+	end
 end
 
 local function getGroundY(plot: Model): number
@@ -112,31 +133,40 @@ local function moveToPoint(worker: RuntimeWorker, target: Instance, position: Ve
 	end
 
 	setState(worker, "Moving")
+	playWalk(worker)
+
 	local path = PathfindingService:CreatePath({
 		AgentRadius = 2,
 		AgentHeight = 5,
 		AgentCanJump = true,
 		WaypointSpacing = 4,
 	})
+
 	local computed = pcall(function()
 		path:ComputeAsync(root.Position, position)
 	end)
 
+	local success = false
+
 	if computed and path.Status == Enum.PathStatus.Success then
+		success = true
+
 		for _, waypoint in path:GetWaypoints() do
 			if waypoint.Action == Enum.PathWaypointAction.Jump then
 				humanoid.Jump = true
 			end
 
 			if not moveToPosition(worker, humanoid, target, waypoint.Position) then
-				return false
+				success = false
+				break
 			end
 		end
-
-		return true
+	else
+		success = moveToPosition(worker, humanoid, target, position)
 	end
 
-	return moveToPosition(worker, humanoid, target, position)
+	playIdle(worker)
+	return success
 end
 
 local function moveTo(worker: RuntimeWorker, target: BasePart): boolean
@@ -145,9 +175,18 @@ end
 
 local function playAction(worker: RuntimeWorker)
 	setState(worker, "CollectingOrProcessing")
+
+	worker.WalkTrack:Stop(0.1)
+	worker.IdleTrack:Stop(0.1)
+
 	worker.ActionTrack:Stop(0)
 	worker.ActionTrack:Play(0.1)
+
 	task.wait(WorkerConfig.ActionSeconds)
+
+	if worker.Active then
+		playIdle(worker)
+	end
 end
 
 local function depositCargo(worker: RuntimeWorker): boolean
@@ -217,14 +256,20 @@ local function runCoalCycle(worker: RuntimeWorker)
 	end
 
 	local collectionPoint = FactoryService.GetFirstCollectionModel(worker.Player)
-	local collectionRoot = collectionPoint and (collectionPoint.PrimaryPart or collectionPoint:FindFirstChildWhichIsA("BasePart", true))
-	if not collectionPoint or not collectionRoot or not moveToPoint(worker, collectionPoint, collectionRoot.Position) then
+	local collectionRoot = collectionPoint
+		and (collectionPoint.PrimaryPart or collectionPoint:FindFirstChildWhichIsA("BasePart", true))
+	if
+		not collectionPoint
+		or not collectionRoot
+		or not moveToPoint(worker, collectionPoint, collectionRoot.Position)
+	then
 		task.wait(WorkerConfig.RetrySeconds)
 		return
 	end
 
 	playAction(worker)
-	local withdrawn, resourceType = FactoryService.WithdrawCollection(worker.Player, EconomyService.GetNPCAmount(worker.NPC))
+	local withdrawn, resourceType =
+		FactoryService.WithdrawCollection(worker.Player, EconomyService.GetNPCAmount(worker.NPC))
 	if withdrawn > 0 then
 		worker.NPC.CargoType = resourceType
 		worker.NPC.CargoAmount = withdrawn
@@ -374,6 +419,12 @@ local function createWorker(player: Player, plot: Model, npc: WorkerTypes.NPCDat
 			Enum.AnimationPriority.Action
 		),
 		IdleTrack = loadTrack(animator :: Animator, WorkerConfig.IdleAnimationId, true, Enum.AnimationPriority.Idle),
+		WalkTrack = loadTrack(
+			animator :: Animator,
+			WorkerConfig.WalkAnimationId,
+			true,
+			Enum.AnimationPriority.Movement
+		),
 		Model = model,
 		NPC = npc,
 		Player = player,
@@ -450,6 +501,7 @@ function WorkerService.CleanupPlayer(player: Player)
 	for _, worker in workers do
 		worker.Active = false
 		worker.IdleTrack:Stop()
+		worker.WalkTrack:Stop()
 		worker.ActionTrack:Stop()
 		worker.Model:Destroy()
 	end

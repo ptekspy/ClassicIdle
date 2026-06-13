@@ -30,6 +30,7 @@ end
 
 local Config = {
 	IdleAnimationId = "rbxassetid://507766666",
+	WalkAnimationId = "rbxassetid://507777826",
 	DefaultCapacity = 25,
 	DefaultRespawnSeconds = 5,
 	MoveTimeoutSeconds = 15,
