@@ -62,7 +62,12 @@ local function MainHudScreen(props: Props)
 	local data = PlayerDataContext.usePlayerData()
 	local factory = props.factory or EMPTY_FACTORY
 
-	local scale = math.clamp(responsive.scale, 0.75, 1.05)
+	-- Important:
+	-- Do not clamp the minimum scale up.
+	-- The bigger TypographyConfig already handles readability.
+	-- Forcing 0.75+ breaks shorter/wide viewports.
+	local scale = math.min(responsive.scale, 1.05)
+
 	local screenWidth = math.max(1, responsive.viewportSize.X)
 	local screenHeight = math.max(1, responsive.viewportSize.Y)
 	local topLeftInset = responsive.topLeftInset or Vector2.new(0, 0)
