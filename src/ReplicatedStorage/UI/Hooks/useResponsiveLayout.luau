@@ -1,16 +1,36 @@
 --!strict
+local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local React = require(ReplicatedStorage.Vendor.React)
 local Layout = require(ReplicatedStorage.UI.Config.LayoutConfig)
 
 export type Result = { scale: number, viewportSize: Vector2 }
 
-return function(): Result
+local function getGuiViewportSize(): Vector2
 	local camera = workspace.CurrentCamera
-	local size, setSize = React.useState(if camera then camera.ViewportSize else Layout.ReferenceSize)
+	if not camera then
+		return Layout.ReferenceSize
+	end
+
+	local topLeftInset, bottomRightInset = GuiService:GetGuiInset()
+	local viewportSize = camera.ViewportSize
+
+	return Vector2.new(
+		math.max(1, viewportSize.X - topLeftInset.X - bottomRightInset.X),
+		math.max(1, viewportSize.Y - topLeftInset.Y - bottomRightInset.Y)
+	)
+end
+
+return function(): Result
+	local size, setSize = React.useState(getGuiViewportSize())
 
 	React.useEffect(function()
 		local viewportConnection: RBXScriptConnection? = nil
+
+		local function refresh()
+			setSize(getGuiViewportSize())
+		end
 
 		local function connectCamera()
 			if viewportConnection then
@@ -24,17 +44,18 @@ return function(): Result
 				return
 			end
 
-			setSize(activeCamera.ViewportSize)
-			viewportConnection = activeCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-				setSize(activeCamera.ViewportSize)
-			end)
+			refresh()
+
+			viewportConnection = activeCamera:GetPropertyChangedSignal("ViewportSize"):Connect(refresh)
 		end
 
 		connectCamera()
+
 		local cameraConnection = workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(connectCamera)
 
 		return function()
 			cameraConnection:Disconnect()
+
 			if viewportConnection then
 				viewportConnection:Disconnect()
 			end
