@@ -1,5 +1,6 @@
 --!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local React = require(ReplicatedStorage.Vendor.React)
 local HUD = require(ReplicatedStorage.UI.Config.HUDConfig)
 local Button = require(ReplicatedStorage.UI.Components.Button)
@@ -23,6 +24,7 @@ local function LaunchButton(props: Props)
 			size = UDim2.fromScale(1, 1),
 			onActivated = nil,
 		}),
+
 		Icon = React.createElement("Frame", {
 			Position = UDim2.fromScale(0.02, 0),
 			Size = UDim2.fromScale(if compact then 0.25 else 0.34, 1),
@@ -32,28 +34,25 @@ local function LaunchButton(props: Props)
 				HorizontalAlignment = Enum.HorizontalAlignment.Center,
 				VerticalAlignment = Enum.VerticalAlignment.Center,
 			}),
-			Image = if compact
-				then React.createElement(Icon, {
-					icon = "Rocket",
-					size = "Large",
-				})
-				else React.createElement(Icon, {
-					icon = "Rocket",
-					size = "Hero",
-				}),
+			Image = React.createElement(Icon, {
+				icon = "Rocket",
+				size = if compact then "Large" else "Hero",
+			}),
 		}),
+
 		Launch = React.createElement(Text, {
 			text = "LAUNCH",
 			variant = if compact then "Heading" else "Hero",
-			color = "Dark",
-			position = UDim2.fromScale(if compact then 0.28 else 0.35, 0.12),
-			size = UDim2.fromScale(if compact then 0.67 else 0.6, 0.48),
+			color = "Primary",
+			position = UDim2.fromScale(if compact then 0.28 else 0.35, 0.1),
+			size = UDim2.fromScale(if compact then 0.67 else 0.6, 0.5),
 		}),
+
 		Cost = React.createElement(Text, {
 			text = `Fuel Cost: {HUD.Demo.LaunchFuelCost}`,
 			variant = if compact then "Caption" else "Label",
-			color = "Dark",
-			position = UDim2.fromScale(if compact then 0.28 else 0.35, 0.58),
+			color = "Primary",
+			position = UDim2.fromScale(if compact then 0.28 else 0.35, 0.6),
 			size = UDim2.fromScale(if compact then 0.67 else 0.6, 0.24),
 		}),
 	})

@@ -1,5 +1,6 @@
 --!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local React = require(ReplicatedStorage.Vendor.React)
 local FormatNumber = require(ReplicatedStorage.Packages.FormatNumber.Simple)
 local HUD = require(ReplicatedStorage.UI.Config.HUDConfig)
@@ -18,7 +19,7 @@ export type Props = {
 local function slot(width: number, layoutOrder: number, child: React.ReactNode): React.ReactNode
 	return React.createElement("Frame", {
 		LayoutOrder = layoutOrder,
-		Size = UDim2.fromScale(width, 1),
+		Size = UDim2.fromOffset(width, 72),
 		BackgroundTransparency = 1,
 	}, {
 		Content = React.createElement("Frame", {
@@ -33,18 +34,11 @@ local function slot(width: number, layoutOrder: number, child: React.ReactNode):
 end
 
 local function currency(icon: string, value: string): React.ReactNode
-	return React.createElement("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(190, 58),
-		BackgroundTransparency = 1,
-	}, {
-		Pill = React.createElement(CurrencyPill, {
-			icon = icon,
-			value = value,
-			showPlus = true,
-			enabled = false,
-		}),
+	return React.createElement(CurrencyPill, {
+		icon = icon,
+		value = value,
+		showPlus = true,
+		enabled = false,
 	})
 end
 
@@ -54,7 +48,7 @@ local function bestDistance(): React.ReactNode
 		children = {
 			Icon = React.createElement("Frame", {
 				Position = UDim2.fromScale(0.04, 0),
-				Size = UDim2.fromScale(0.27, 1),
+				Size = UDim2.fromScale(0.3, 1),
 				BackgroundTransparency = 1,
 			}, {
 				Layout = React.createElement("UIListLayout", {
@@ -69,17 +63,17 @@ local function bestDistance(): React.ReactNode
 			Heading = React.createElement(Text, {
 				text = "Best Distance",
 				variant = "Caption",
-				color = "Secondary",
-				position = UDim2.fromScale(0.31, 0.08),
-				size = UDim2.fromScale(0.65, 0.38),
+				color = "Primary",
+				position = UDim2.fromScale(0.32, 0.08),
+				size = UDim2.fromScale(0.62, 0.34),
 				textXAlignment = Enum.TextXAlignment.Left,
 			}),
 			Value = React.createElement(Text, {
 				text = HUD.Demo.BestDistance,
 				variant = "Label",
-				color = "Primary",
-				position = UDim2.fromScale(0.31, 0.43),
-				size = UDim2.fromScale(0.65, 0.45),
+				color = "Yellow",
+				position = UDim2.fromScale(0.32, 0.42),
+				size = UDim2.fromScale(0.62, 0.46),
 				textXAlignment = Enum.TextXAlignment.Left,
 			}),
 		},
@@ -113,15 +107,16 @@ local function TopStatusBar(props: Props)
 			HorizontalAlignment = Enum.HorizontalAlignment.Left,
 			VerticalAlignment = Enum.VerticalAlignment.Center,
 			SortOrder = Enum.SortOrder.LayoutOrder,
-			Padding = UDim.new(0.01, 0),
+			Padding = UDim.new(0, 14),
 		}),
-		Gold = slot(0.16, 1, currency("Gold", FormatNumber.FormatCompact(props.gold))),
-		Gems = slot(0.16, 2, currency("Gems", FormatNumber.FormatCompact(HUD.Demo.Gems))),
-		Fuel = slot(0.16, 3, currency("Fuel", FormatNumber.FormatCompact(HUD.Demo.Fuel))),
-		BestDistance = slot(0.13, 4, bestDistance()),
-		Level = slot(0.19, 5, React.createElement(LevelStatusPill, { xp = props.xp })),
-		Wheel = slot(0.07, 6, iconButton("Wheel", nil, "!")),
-		Calendar = slot(0.07, 7, iconButton("Calendar", tostring(HUD.Demo.CalendarDay), nil)),
+
+		Gold = slot(230, 1, currency("Gold", FormatNumber.FormatCompact(props.gold))),
+		Gems = slot(230, 2, currency("Gems", FormatNumber.FormatCompact(HUD.Demo.Gems))),
+		Fuel = slot(230, 3, currency("Fuel", FormatNumber.FormatCompact(HUD.Demo.Fuel))),
+		BestDistance = slot(220, 4, bestDistance()),
+		Level = slot(280, 5, React.createElement(LevelStatusPill, { xp = props.xp })),
+		Wheel = slot(72, 6, iconButton("Wheel", nil, "!")),
+		Calendar = slot(72, 7, iconButton("Calendar", tostring(HUD.Demo.CalendarDay), nil)),
 	})
 end
 

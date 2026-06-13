@@ -1,5 +1,6 @@
 --!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local FactoryConfig = require(ReplicatedStorage.Factory.Config)
 local React = require(ReplicatedStorage.Vendor.React)
 local HotbarSlot = require(ReplicatedStorage.UI.Components.HotbarSlot)
@@ -7,6 +8,17 @@ local HotbarSlot = require(ReplicatedStorage.UI.Components.HotbarSlot)
 export type Props = {
 	inventory: { [string]: number },
 	onSelectItem: ((string) -> ())?,
+}
+
+local SLOT_COUNT = 8
+
+local ICON_BY_ITEM: { [string]: string } = {
+	ConveyorDropper = "Build",
+	StraightConveyor = "Build",
+	CornerConveyor = "Build",
+	ConveyorUpgrader = "Settings",
+	ConveyorCollectionBin = "Backpack",
+	WorkerHome = "Friends",
 }
 
 local function FactoryHotbar(props: Props)
@@ -20,32 +32,25 @@ local function FactoryHotbar(props: Props)
 		}),
 	}
 
-	local slotNumber = 0
-	for _, itemId in FactoryConfig.ItemOrder do
-		local count = props.inventory[itemId] or 0
-		if count > 0 then
-			slotNumber += 1
-			children[`Slot{slotNumber}`] = React.createElement(HotbarSlot, {
-				slotNumber = slotNumber,
-				icon = "Build",
-				count = count,
-				layoutOrder = slotNumber,
-				onActivated = if props.onSelectItem
-					then function()
-						props.onSelectItem(itemId)
-					end
-					else nil,
-			})
-		end
-	end
+	for slotNumber = 1, SLOT_COUNT do
+		local itemId = FactoryConfig.ItemOrder[slotNumber]
+		local count = if itemId then props.inventory[itemId] or 0 else 0
+		local hasItemDefinition = itemId ~= nil
 
-	slotNumber += 1
-	children.Locked = React.createElement(HotbarSlot, {
-		slotNumber = slotNumber,
-		locked = true,
-		layoutOrder = slotNumber,
-		onActivated = nil,
-	})
+		children[`Slot{slotNumber}`] = React.createElement(HotbarSlot, {
+			slotNumber = slotNumber,
+			icon = if itemId then ICON_BY_ITEM[itemId] or "Build" else nil,
+			count = count,
+			locked = not hasItemDefinition,
+			disabled = hasItemDefinition and count <= 0,
+			layoutOrder = slotNumber,
+			onActivated = if itemId and count > 0 and props.onSelectItem
+				then function()
+					props.onSelectItem(itemId)
+				end
+				else nil,
+		})
+	end
 
 	return React.createElement("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
