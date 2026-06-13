@@ -7,6 +7,7 @@ local Icon = require(ReplicatedStorage.UI.Primitives.Icon)
 local Text = require(ReplicatedStorage.UI.Primitives.Text)
 
 export type Props = {
+	size: UDim2?,
 	text: string?,
 	slotNumber: number?,
 	icon: string?,
@@ -27,7 +28,7 @@ local function HotbarSlot(props: Props)
 
 	return React.createElement("Frame", {
 		LayoutOrder = props.layoutOrder,
-		Size = UDim2.fromOffset(96, 74),
+		Size = props.size or UDim2.fromOffset(96, 74),
 		BackgroundTransparency = 1,
 	}, {
 		Button = React.createElement(Button, {
@@ -42,8 +43,8 @@ local function HotbarSlot(props: Props)
 				text = tostring(props.slotNumber),
 				variant = "Caption",
 				color = "Primary",
-				position = UDim2.fromOffset(7, 4),
-				size = UDim2.fromOffset(22, 18),
+				position = UDim2.fromOffset(8, 5),
+				size = UDim2.fromOffset(26, 22),
 				textXAlignment = Enum.TextXAlignment.Left,
 			})
 			else nil,
@@ -51,8 +52,8 @@ local function HotbarSlot(props: Props)
 		Icon = if icon
 			then React.createElement("Frame", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromScale(0.5, 0.45),
-				Size = UDim2.fromScale(0.7, 0.66),
+				Position = UDim2.fromScale(0.5, 0.43),
+				Size = UDim2.fromScale(0.72, 0.62),
 				BackgroundTransparency = 1,
 			}, {
 				Layout = React.createElement("UIListLayout", {
@@ -71,8 +72,8 @@ local function HotbarSlot(props: Props)
 				text = `x{count}`,
 				variant = "Caption",
 				color = "Primary",
-				position = UDim2.fromScale(0.48, 0.68),
-				size = UDim2.fromScale(0.45, 0.24),
+				position = UDim2.fromScale(0.45, 0.68),
+				size = UDim2.fromScale(0.48, 0.24),
 				textXAlignment = Enum.TextXAlignment.Right,
 			})
 			else nil,

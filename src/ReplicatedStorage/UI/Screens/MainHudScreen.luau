@@ -23,6 +23,7 @@ local EMPTY_FACTORY = {
 local TOP_BAR_X = 284
 local TOP_BAR_Y = 22
 local TOP_BAR_RIGHT_PADDING = 16
+local ZONE_PROGRESS_GAP = 10
 
 local function scaled(value: number, scale: number): number
 	return math.floor(value * scale + 0.5)
@@ -61,7 +62,7 @@ local function MainHudScreen(props: Props)
 	local data = PlayerDataContext.usePlayerData()
 	local factory = props.factory or EMPTY_FACTORY
 
-	local scale = math.max(responsive.scale, 0.01)
+	local scale = math.clamp(responsive.scale, 0.75, 1.05)
 	local screenWidth = math.max(1, responsive.viewportSize.X)
 	local screenHeight = math.max(1, responsive.viewportSize.Y)
 	local topLeftInset = responsive.topLeftInset or Vector2.new(0, 0)
@@ -69,6 +70,10 @@ local function MainHudScreen(props: Props)
 	local function s(value: number): number
 		return scaled(value, scale)
 	end
+
+	local topBarY = TOP_BAR_Y - topLeftInset.Y
+	local topBarWidth = math.max(1, screenWidth - TOP_BAR_X - s(TOP_BAR_RIGHT_PADDING))
+	local zoneProgressY = topBarY + s(72 + ZONE_PROGRESS_GAP)
 
 	return React.createElement("ScreenGui", {
 		ResetOnSpawn = false,
@@ -83,8 +88,8 @@ local function MainHudScreen(props: Props)
 		}, {
 			TopStatusBar = region(
 				Vector2.new(0, 0),
-				Vector2.new(TOP_BAR_X, TOP_BAR_Y - topLeftInset.Y),
-				Vector2.new(math.max(1, screenWidth - TOP_BAR_X - s(TOP_BAR_RIGHT_PADDING)), s(72)),
+				Vector2.new(TOP_BAR_X, topBarY),
+				Vector2.new(topBarWidth, s(72)),
 				scale,
 				React.createElement(TopStatusBar, {
 					gold = data.Gold,
@@ -94,8 +99,8 @@ local function MainHudScreen(props: Props)
 
 			ZoneProgress = region(
 				Vector2.new(0, 0),
-				Vector2.new(s(430), s(116)),
-				Vector2.new(math.max(1, screenWidth - s(840)), s(76)),
+				Vector2.new(TOP_BAR_X, zoneProgressY),
+				Vector2.new(topBarWidth, s(76)),
 				scale,
 				React.createElement(ZoneProgressBar, {
 					visible = true,

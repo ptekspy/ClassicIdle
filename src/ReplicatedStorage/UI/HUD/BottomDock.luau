@@ -15,8 +15,9 @@ export type Props = {
 	onSelectItem: ((string) -> ())?,
 }
 
-local HOTBAR_LEFT = 376
-local HOTBAR_RIGHT_GAP = 604
+local HOTBAR_AREA_LEFT = 376
+local HOTBAR_AREA_RIGHT = 604
+local HOTBAR_WIDTH_SCALE = 0.9
 
 local function inviteFriends(): React.ReactNode
 	return React.createElement(Panel, {
@@ -92,12 +93,19 @@ local function BottomDock(props: Props)
 			})
 		),
 
-		Hotbar = frame(
-			UDim2.fromOffset(HOTBAR_LEFT, 30),
-			UDim2.new(1, -(HOTBAR_LEFT + HOTBAR_RIGHT_GAP), 0, 120),
-			React.createElement(FactoryHotbar, {
-				inventory = props.inventory,
-				onSelectItem = props.onSelectItem,
+		HotbarArea = frame(
+			UDim2.fromOffset(HOTBAR_AREA_LEFT, 30),
+			UDim2.new(1, -(HOTBAR_AREA_LEFT + HOTBAR_AREA_RIGHT), 0, 120),
+			React.createElement("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromScale(HOTBAR_WIDTH_SCALE, 1),
+				BackgroundTransparency = 1,
+			}, {
+				Hotbar = React.createElement(FactoryHotbar, {
+					inventory = props.inventory,
+					onSelectItem = props.onSelectItem,
+				}),
 			})
 		),
 

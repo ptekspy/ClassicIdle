@@ -11,6 +11,7 @@ export type Props = {
 }
 
 local SLOT_COUNT = 8
+local SLOT_PADDING = 8
 
 local ICON_BY_ITEM: { [string]: string } = {
 	ConveyorDropper = "Build",
@@ -28,7 +29,7 @@ local function FactoryHotbar(props: Props)
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
 			VerticalAlignment = Enum.VerticalAlignment.Center,
 			SortOrder = Enum.SortOrder.LayoutOrder,
-			Padding = UDim.new(0, 8),
+			Padding = UDim.new(0, SLOT_PADDING),
 		}),
 	}
 
@@ -38,6 +39,7 @@ local function FactoryHotbar(props: Props)
 		local hasItemDefinition = itemId ~= nil
 
 		children[`Slot{slotNumber}`] = React.createElement(HotbarSlot, {
+			size = UDim2.new(1 / SLOT_COUNT, -SLOT_PADDING, 0, 86),
 			slotNumber = slotNumber,
 			icon = if itemId then ICON_BY_ITEM[itemId] or "Build" else nil,
 			count = count,
