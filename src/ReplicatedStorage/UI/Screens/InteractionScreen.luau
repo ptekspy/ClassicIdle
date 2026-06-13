@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Vendor.React)
+local Layout = require(ReplicatedStorage.UI.Config.LayoutConfig)
 local Crosshair = require(script.Parent.Parent.Components.Crosshair)
 local InteractionPrompt = require(script.Parent.Parent.Components.InteractionPrompt)
 local TouchInteractButton = require(script.Parent.Parent.Components.TouchInteractButton)
@@ -20,8 +21,7 @@ local function InteractionScreen(props: { interaction: any? })
 	local state = props.interaction or EMPTY
 
 	return React.createElement("ScreenGui", {
-		Name = "InteractionGui",
-		DisplayOrder = 20,
+		DisplayOrder = Layout.DisplayOrder.Interaction,
 		IgnoreGuiInset = true,
 		ResetOnSpawn = false,
 	}, {

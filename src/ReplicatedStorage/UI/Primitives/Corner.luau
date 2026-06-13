@@ -12,5 +12,6 @@ local values: { [Types.CornerVariant]: number } = {
 }
 
 return function(props: { variant: Types.CornerVariant })
-	return React.createElement("UICorner", { CornerRadius = UDim.new(0, assert(values[props.variant])) })
+	local radius = assert(values[props.variant], `Unknown corner variant: {props.variant}`)
+	return React.createElement("UICorner", { CornerRadius = UDim.new(0, radius) })
 end

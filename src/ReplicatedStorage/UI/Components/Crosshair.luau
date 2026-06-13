@@ -2,19 +2,18 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Vendor.React)
+local Colors = require(ReplicatedStorage.UI.Config.ColorConfig)
+local Corner = require(ReplicatedStorage.UI.Primitives.Corner)
 
 local function Crosshair(props: { visible: boolean })
 	return React.createElement("Frame", {
-		Name = "Crosshair",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.fromOffset(8, 8),
-		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundColor3 = Colors.Text.Primary,
 		Visible = props.visible,
 	}, {
-		Corner = React.createElement("UICorner", {
-			CornerRadius = UDim.new(1, 0),
-		}),
+		Corner = React.createElement(Corner, { variant = "Pill" }),
 	})
 end
 

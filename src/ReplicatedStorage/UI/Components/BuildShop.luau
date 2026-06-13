@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Vendor.React)
 local BuildShopItem = require(script.Parent.BuildShopItem)
+local Panel = require(script.Parent.Panel)
 
 export type ShopItem = {
 	id: string,
@@ -21,9 +22,6 @@ local function BuildShop(props: {
 			Padding = UDim.new(0, 8),
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
 			SortOrder = Enum.SortOrder.LayoutOrder,
-		}),
-		Corner = React.createElement("UICorner", {
-			CornerRadius = UDim.new(0, 12),
 		}),
 	}
 
@@ -44,13 +42,17 @@ local function BuildShop(props: {
 	})
 
 	return React.createElement("Frame", {
-		Name = "Shop",
 		Position = UDim2.new(1, -320, 0, 80),
 		Size = UDim2.fromOffset(300, 430),
-		BackgroundColor3 = Color3.fromRGB(25, 25, 25),
-		BackgroundTransparency = 0.08,
+		BackgroundTransparency = 1,
 		Visible = props.visible,
-	}, children)
+	}, {
+		Panel = React.createElement(Panel, {
+			variant = "Status",
+			size = UDim2.fromScale(1, 1),
+			children = children,
+		}),
+	})
 end
 
 return BuildShop

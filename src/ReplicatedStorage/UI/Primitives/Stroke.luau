@@ -12,7 +12,7 @@ local styles: { [Types.StrokeVariant]: { color: Color3, thickness: number } } = 
 }
 
 return function(props: { variant: Types.StrokeVariant })
-	local style = assert(styles[props.variant])
+	local style = assert(styles[props.variant], `Unknown stroke variant: {props.variant}`)
 	return React.createElement("UIStroke", {
 		Color = style.color,
 		Thickness = style.thickness,

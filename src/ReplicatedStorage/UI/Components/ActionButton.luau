@@ -10,11 +10,11 @@ export type Props = {
 	height: number?,
 	textSize: number?,
 	layoutOrder: number?,
-	onActivated: () -> (),
+	onActivated: (() -> ())?,
 }
 
 local function ActionButton(props: Props)
-	local enabled = props.enabled ~= false
+	local enabled = props.enabled ~= false and props.onActivated ~= nil
 
 	return React.createElement(Button, {
 		text = props.text,

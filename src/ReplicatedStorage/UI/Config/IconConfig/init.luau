@@ -1,3 +1,5 @@
+--!strict
+
 local function icon(asset: string, ratio: number?)
 	return table.freeze({ Asset = asset, AspectRatio = ratio or 1 })
 end
@@ -12,14 +14,14 @@ local Icons = {
 	Calendar = icon("rbxassetid://105502987968591"),
 	Earth = icon("rbxassetid://74788537494081"),
 	Moon = icon("rbxassetid://140254719572840"),
-	
+
 	Gift = icon("rbxassetid://111921330601791"),
 	Meteor = icon("rbxassetid://110587380688018"),
 	Shop = icon("rbxassetid://120377434809387"),
 
 	Rocket = icon("rbxassetid://129253752956835"),
 	Pets = icon("rbxassetid://101726372604270"),
-	
+
 	Rebirth = icon("rbxassetid://135334700216157"),
 	Codes = icon("rbxassetid://72833422206078"),
 	Settings = icon("rbxassetid://110729428635050"),

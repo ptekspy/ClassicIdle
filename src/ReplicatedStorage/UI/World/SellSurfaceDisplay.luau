@@ -2,15 +2,16 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Vendor.React)
+local Colors = require(ReplicatedStorage.UI.Config.ColorConfig)
+local Typography = require(ReplicatedStorage.UI.Config.TypographyConfig)
 
 local function SellSurfaceDisplay(props: { value: number })
 	return React.createElement("TextLabel", {
-		Name = "TextLabel",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
-		Font = Enum.Font.GothamBold,
+		Font = Typography.Heading.Font,
 		Text = `${props.value}`,
-		TextColor3 = Color3.fromRGB(0, 255, 0),
+		TextColor3 = Colors.World.SellSurface,
 		TextScaled = true,
 		TextWrapped = true,
 	}, {
@@ -19,7 +20,7 @@ local function SellSurfaceDisplay(props: { value: number })
 			MaxTextSize = 60,
 		}),
 		Stroke = React.createElement("UIStroke", {
-			Color = Color3.fromRGB(0, 116, 0),
+			Color = Colors.World.SellSurfaceOutline,
 			Thickness = 5,
 			LineJoinMode = Enum.LineJoinMode.Round,
 			Transparency = 0,

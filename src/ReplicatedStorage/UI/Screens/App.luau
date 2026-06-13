@@ -10,6 +10,7 @@ local InteractionScreen = require(script.Parent.InteractionScreen)
 local MachineScreen = require(script.Parent.MachineScreen)
 local WorkerScreen = require(script.Parent.WorkerScreen)
 local FactoryScreen = require(script.Parent.FactoryScreen)
+local MainHudScreen = require(script.Parent.MainHudScreen)
 
 local function App(props: { state: any })
 	return React.createElement(PlayerDataContext.Provider, nil, {
@@ -17,7 +18,6 @@ local function App(props: { state: any })
 			feedback = props.state.feedback,
 		}),
 		Quest = React.createElement(QuestScreen, {
-			quest = props.state.quest,
 			questMarker = props.state.questMarker,
 		}),
 		Interaction = React.createElement(InteractionScreen, {
@@ -30,6 +30,10 @@ local function App(props: { state: any })
 			menu = props.state.machineMenu,
 		}),
 		Factory = React.createElement(FactoryScreen, {
+			factory = props.state.factory,
+		}),
+		MainHud = React.createElement(MainHudScreen, {
+			quest = props.state.quest,
 			factory = props.state.factory,
 		}),
 	})

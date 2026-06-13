@@ -6,10 +6,17 @@ local NotificationBadge = require(ReplicatedStorage.UI.Components.NotificationBa
 local Icon = require(ReplicatedStorage.UI.Primitives.Icon)
 local Text = require(ReplicatedStorage.UI.Primitives.Text)
 
-export type Props = { icon: string, label: string, badge: string?, onActivated: (() -> ())? }
+export type Props = {
+	icon: string,
+	label: string,
+	badge: string?,
+	layoutOrder: number?,
+	onActivated: (() -> ())?,
+}
 
 local function ActionTile(props: Props)
 	return React.createElement("Frame", {
+		LayoutOrder = props.layoutOrder or 0,
 		Size = UDim2.fromOffset(116, 126),
 		BackgroundTransparency = 1,
 	}, {

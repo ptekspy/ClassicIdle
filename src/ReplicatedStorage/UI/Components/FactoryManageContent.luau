@@ -5,17 +5,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Vendor.React)
 local ResourceConfig = require(ReplicatedStorage.Resource.Config)
 local ActionButton = require(script.Parent.ActionButton)
+local Panel = require(script.Parent.Panel)
+local Text = require(ReplicatedStorage.UI.Primitives.Text)
 
 local function label(text: string, order: number)
-	return React.createElement("TextLabel", {
-		LayoutOrder = order,
-		Size = UDim2.new(1, -16, 0, 58),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		Text = text,
-		TextColor3 = Color3.fromRGB(220, 220, 220),
-		TextSize = 14,
-		TextWrapped = true,
+	return React.createElement(Text, {
+		text = text,
+		variant = "Caption",
+		color = "Secondary",
+		size = UDim2.new(1, -16, 0, 58),
+		layoutOrder = order,
+		wrapped = true,
 	})
 end
 
@@ -32,17 +32,12 @@ local function FactoryManageContent(props: { factory: any })
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
-		Corner = React.createElement("UICorner", {
-			CornerRadius = UDim.new(0, 12),
-		}),
-		Title = React.createElement("TextLabel", {
-			LayoutOrder = 1,
-			Size = UDim2.new(1, 0, 0, 48),
-			BackgroundTransparency = 1,
-			Font = Enum.Font.GothamBold,
-			Text = payload.DisplayName,
-			TextColor3 = Color3.new(1, 1, 1),
-			TextSize = 20,
+		Title = React.createElement(Text, {
+			text = payload.DisplayName,
+			variant = "Label",
+			color = "Primary",
+			size = UDim2.new(1, 0, 0, 48),
+			layoutOrder = 1,
 		}),
 		Move = React.createElement(ActionButton, {
 			text = "MOVE",
@@ -57,7 +52,10 @@ local function FactoryManageContent(props: { factory: any })
 
 	local order = 3
 	if payload.ItemId == "ConveyorDropper" then
-		children.Description = label("Runs automatically while the selected resource is in Storage and a valid conveyor is connected.", order)
+		children.Description = label(
+			"Runs automatically while the selected resource is in Storage and a valid conveyor is connected.",
+			order
+		)
 		order += 1
 		for _, resourceId in payload.ResourceOptions or {} do
 			local definition = ResourceConfig.Get(resourceId)
@@ -85,7 +83,8 @@ local function FactoryManageContent(props: { factory: any })
 			end,
 		})
 	elseif payload.ItemId == "ConveyorCollectionBin" then
-		children.Description = label("Factory output waits here. Collect it manually to move as much as possible into Storage.", order)
+		children.Description =
+			label("Factory output waits here. Collect it manually to move as much as possible into Storage.", order)
 		children.Collect = React.createElement(ActionButton, {
 			text = `COLLECT {payload.StoredAmount or 0} {payload.StoredResourceType or ""}`,
 			height = 48,
@@ -106,12 +105,16 @@ local function FactoryManageContent(props: { factory: any })
 	})
 
 	return React.createElement("Frame", {
-		Name = "Manage",
 		Position = UDim2.new(0.5, -160, 0.5, -160),
 		Size = UDim2.fromOffset(320, 320),
-		BackgroundColor3 = Color3.fromRGB(25, 25, 25),
-		BackgroundTransparency = 0.08,
-	}, children)
+		BackgroundTransparency = 1,
+	}, {
+		Panel = React.createElement(Panel, {
+			variant = "Status",
+			size = UDim2.fromScale(1, 1),
+			children = children,
+		}),
+	})
 end
 
 return FactoryManageContent

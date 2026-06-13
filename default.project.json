@@ -9,10 +9,7 @@
       }
     },
     "ServerScriptService": {
-      "$path": "src/ServerScriptService",
-      "ServerVendor": {
-        "$path": "ServerPackages"
-      }
+      "$path": "src/ServerScriptService"
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {

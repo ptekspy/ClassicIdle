@@ -2,18 +2,24 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Vendor.React)
+local Colors = require(ReplicatedStorage.UI.Config.ColorConfig)
+local Typography = require(ReplicatedStorage.UI.Config.TypographyConfig)
+
+local richTextOutline = Colors.World.SellBillboardRichTextOutline
+local outlineRichText = `rgb({math.round(richTextOutline.R * 255)}, {math.round(richTextOutline.G * 255)}, {math.round(
+	richTextOutline.B * 255
+)})`
 
 local function SellBillboard(props: { value: number })
 	return React.createElement("TextLabel", {
-		Name = "TextLabel",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
-		Font = Enum.Font.GothamBold,
+		Font = Typography.Heading.Font,
 		RichText = true,
-		Text = `<stroke color="rgb(0, 118, 0)" joins="miter" thickness="7" transparency="0.5">${props.value}</stroke>`,
-		TextColor3 = Color3.fromRGB(85, 255, 0),
+		Text = `<stroke color="{outlineRichText}" joins="miter" thickness="7" transparency="0.5">${props.value}</stroke>`,
+		TextColor3 = Colors.World.SellBillboard,
 		TextScaled = true,
-		TextStrokeColor3 = Color3.fromRGB(0, 138, 0),
+		TextStrokeColor3 = Colors.World.SellBillboardOutline,
 		TextStrokeTransparency = 0,
 		TextWrapped = true,
 	})

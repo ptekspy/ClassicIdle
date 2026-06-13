@@ -32,6 +32,15 @@ local Colors = {
 	Badge = {
 		Red = Color3.fromRGB(238, 54, 48),
 	},
+	World = {
+		Background = Color3.fromRGB(25, 25, 25),
+		RespawnFill = Color3.fromRGB(95, 220, 110),
+		SellBillboard = Color3.fromRGB(85, 255, 0),
+		SellBillboardOutline = Color3.fromRGB(0, 138, 0),
+		SellBillboardRichTextOutline = Color3.fromRGB(0, 118, 0),
+		SellSurface = Color3.fromRGB(0, 255, 0),
+		SellSurfaceOutline = Color3.fromRGB(0, 116, 0),
+	},
 }
 
 return table.freeze(Colors)

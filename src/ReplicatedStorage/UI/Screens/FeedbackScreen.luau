@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Vendor.React)
+local Layout = require(ReplicatedStorage.UI.Config.LayoutConfig)
 local FeedbackToast = require(script.Parent.Parent.Components.FeedbackToast)
 
 export type FeedbackState = {
@@ -26,10 +27,9 @@ local function FeedbackScreen(props: Props)
 	end
 
 	return React.createElement("ScreenGui", {
-		Name = "FeedbackGui",
 		IgnoreGuiInset = true,
 		ResetOnSpawn = false,
-		DisplayOrder = 10,
+		DisplayOrder = Layout.DisplayOrder.Feedback,
 	}, children)
 end
 

@@ -6,6 +6,7 @@ local Types = require(ReplicatedStorage.UI.Types.DesignSystemTypes)
 
 return function(props: { variant: Types.GradientVariant, rotation: number? })
 	return React.createElement("UIGradient", {
-		Color = assert(Gradients[props.variant]), Rotation = props.rotation or 90,
+		Color = assert(Gradients[props.variant], `Unknown gradient variant: {props.variant}`),
+		Rotation = props.rotation or 90,
 	})
 end

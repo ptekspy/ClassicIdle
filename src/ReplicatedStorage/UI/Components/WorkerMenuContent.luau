@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Vendor.React)
 local ActionButton = require(script.Parent.ActionButton)
+local Text = require(ReplicatedStorage.UI.Primitives.Text)
 
 local function WorkerMenuContent(props: { menu: any })
 	local menu = props.menu
@@ -17,22 +18,22 @@ local function WorkerMenuContent(props: { menu: any })
 				text = if enabled then `{role.DisplayName}\nCost: {role.Cost} Gold` else `{role.DisplayName}\nLocked`,
 				enabled = enabled,
 				layoutOrder = index,
-				onActivated = function()
-					menu.onBuy(role.Role)
-				end,
+				onActivated = if enabled
+					then function()
+						menu.onBuy(role.Role)
+					end
+					else nil,
 			})
 		end
 	elseif payload.Kind == "Manage" then
 		local cargo = if payload.CargoAmount > 0 then `{payload.CargoAmount} {payload.CargoType}` else "Empty"
-		children.Cargo = React.createElement("TextLabel", {
-			Size = UDim2.new(1, 0, 0, 46),
-			BackgroundTransparency = 1,
-			Font = Enum.Font.Gotham,
-			Text = `Current cargo: {cargo}`,
-			TextColor3 = Color3.fromRGB(220, 220, 220),
-			TextSize = 18,
-			TextWrapped = true,
-			TextXAlignment = Enum.TextXAlignment.Left,
+		children.Cargo = React.createElement(Text, {
+			text = `Current cargo: {cargo}`,
+			variant = "Body",
+			color = "Secondary",
+			size = UDim2.new(1, 0, 0, 46),
+			wrapped = true,
+			textXAlignment = Enum.TextXAlignment.Left,
 		})
 		children.Speed = React.createElement(ActionButton, {
 			text = `Upgrade Speed\n{payload.Speed} → {payload.Speed + 2} • {payload.SpeedCost} Gold`,
