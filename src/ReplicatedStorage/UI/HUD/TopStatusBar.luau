@@ -16,10 +16,10 @@ export type Props = {
 	xp: number,
 }
 
-local function slot(width: number, layoutOrder: number, child: React.ReactNode): React.ReactNode
+local function slot(widthScale: number, layoutOrder: number, child: React.ReactNode): React.ReactNode
 	return React.createElement("Frame", {
 		LayoutOrder = layoutOrder,
-		Size = UDim2.fromOffset(width, 72),
+		Size = UDim2.fromScale(widthScale, 1),
 		BackgroundTransparency = 1,
 	}, {
 		Content = React.createElement("Frame", {
@@ -84,7 +84,7 @@ local function iconButton(icon: string, label: string?, badge: string?): React.R
 	return React.createElement("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(72, 72),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 	}, {
 		Button = React.createElement(IconButton, {
@@ -107,16 +107,16 @@ local function TopStatusBar(props: Props)
 			HorizontalAlignment = Enum.HorizontalAlignment.Left,
 			VerticalAlignment = Enum.VerticalAlignment.Center,
 			SortOrder = Enum.SortOrder.LayoutOrder,
-			Padding = UDim.new(0, 14),
+			Padding = UDim.new(0.007, 0),
 		}),
 
-		Gold = slot(230, 1, currency("Gold", FormatNumber.FormatCompact(props.gold))),
-		Gems = slot(230, 2, currency("Gems", FormatNumber.FormatCompact(HUD.Demo.Gems))),
-		Fuel = slot(230, 3, currency("Fuel", FormatNumber.FormatCompact(HUD.Demo.Fuel))),
-		BestDistance = slot(220, 4, bestDistance()),
-		Level = slot(280, 5, React.createElement(LevelStatusPill, { xp = props.xp })),
-		Wheel = slot(72, 6, iconButton("Wheel", nil, "!")),
-		Calendar = slot(72, 7, iconButton("Calendar", tostring(HUD.Demo.CalendarDay), nil)),
+		Gold = slot(0.155, 1, currency("Gold", FormatNumber.FormatCompact(props.gold))),
+		Gems = slot(0.155, 2, currency("Gems", FormatNumber.FormatCompact(HUD.Demo.Gems))),
+		Fuel = slot(0.155, 3, currency("Fuel", FormatNumber.FormatCompact(HUD.Demo.Fuel))),
+		BestDistance = slot(0.145, 4, bestDistance()),
+		Level = slot(0.19, 5, React.createElement(LevelStatusPill, { xp = props.xp })),
+		Wheel = slot(0.065, 6, iconButton("Wheel", nil, "!")),
+		Calendar = slot(0.065, 7, iconButton("Calendar", tostring(HUD.Demo.CalendarDay), nil)),
 	})
 end
 

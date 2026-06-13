@@ -26,7 +26,7 @@ type Style = {
 local styles: { [Types.ButtonVariant]: Style } = {
 	Primary = { color = Colors.Button.Blue, gradient = "PanelBlue", textColor = "Primary" },
 	Secondary = { color = Colors.Panel.Event, gradient = "PanelPurple", textColor = "Primary" },
-	GreenHero = { color = Colors.Button.Green, gradient = "ButtonGreen", textColor = "Dark" },
+	GreenHero = { color = Colors.Button.Green, gradient = "ButtonGreen", textColor = "Primary" },
 	Disabled = { color = Colors.Button.Disabled, gradient = "ButtonDisabled", textColor = "Secondary" },
 }
 

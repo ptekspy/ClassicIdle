@@ -20,6 +20,10 @@ local EMPTY_FACTORY = {
 	onSelectItem = nil,
 }
 
+local TOP_BAR_X = 284
+local TOP_BAR_Y = 22
+local TOP_BAR_RIGHT_PADDING = 16
+
 local function scaled(value: number, scale: number): number
 	return math.floor(value * scale + 0.5)
 end
@@ -60,6 +64,7 @@ local function MainHudScreen(props: Props)
 	local scale = math.max(responsive.scale, 0.01)
 	local screenWidth = math.max(1, responsive.viewportSize.X)
 	local screenHeight = math.max(1, responsive.viewportSize.Y)
+	local topLeftInset = responsive.topLeftInset or Vector2.new(0, 0)
 
 	local function s(value: number): number
 		return scaled(value, scale)
@@ -78,8 +83,8 @@ local function MainHudScreen(props: Props)
 		}, {
 			TopStatusBar = region(
 				Vector2.new(0, 0),
-				Vector2.new(s(380), s(24)),
-				Vector2.new(math.max(1, screenWidth - s(430)), s(72)),
+				Vector2.new(TOP_BAR_X, TOP_BAR_Y - topLeftInset.Y),
+				Vector2.new(math.max(1, screenWidth - TOP_BAR_X - s(TOP_BAR_RIGHT_PADDING)), s(72)),
 				scale,
 				React.createElement(TopStatusBar, {
 					gold = data.Gold,
