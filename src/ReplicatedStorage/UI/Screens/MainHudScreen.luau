@@ -20,21 +20,35 @@ local EMPTY_FACTORY = {
 	onSelectItem = nil,
 }
 
-local function point(x: number, y: number): UDim2
-	return UDim2.fromOffset(x, y)
+local function scaled(value: number, scale: number): number
+	return math.floor(value * scale + 0.5)
 end
 
-local function size(x: number, y: number): UDim2
-	return UDim2.fromOffset(x, y)
-end
+local function region(
+	anchorPoint: Vector2,
+	position: Vector2,
+	regionSize: Vector2,
+	scale: number,
+	child: React.ReactNode
+): React.ReactNode
+	local safeScale = math.max(scale, 0.01)
 
-local function region(position: UDim2, regionSize: UDim2, child: React.ReactNode): React.ReactNode
 	return React.createElement("Frame", {
-		Position = position,
-		Size = regionSize,
+		AnchorPoint = anchorPoint,
+		Position = UDim2.fromOffset(position.X, position.Y),
+		Size = UDim2.fromOffset(regionSize.X, regionSize.Y),
 		BackgroundTransparency = 1,
 	}, {
-		Content = React.createElement(React.Fragment, nil, child),
+		Content = React.createElement("Frame", {
+			Position = UDim2.fromScale(0, 0),
+			Size = UDim2.fromOffset(regionSize.X / safeScale, regionSize.Y / safeScale),
+			BackgroundTransparency = 1,
+		}, {
+			Scale = React.createElement("UIScale", {
+				Scale = safeScale,
+			}),
+			Child = React.createElement(React.Fragment, nil, child),
+		}),
 	})
 end
 
@@ -43,6 +57,14 @@ local function MainHudScreen(props: Props)
 	local data = PlayerDataContext.usePlayerData()
 	local factory = props.factory or EMPTY_FACTORY
 
+	local scale = math.max(responsive.scale, 0.01)
+	local screenWidth = math.max(1, responsive.viewportSize.X)
+	local screenHeight = math.max(1, responsive.viewportSize.Y)
+
+	local function s(value: number): number
+		return scaled(value, scale)
+	end
+
 	return React.createElement("ScreenGui", {
 		ResetOnSpawn = false,
 		IgnoreGuiInset = false,
@@ -50,40 +72,56 @@ local function MainHudScreen(props: Props)
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	}, {
 		Canvas = React.createElement("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(Layout.ReferenceSize.X, Layout.ReferenceSize.Y),
+			Position = UDim2.fromScale(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 		}, {
-			Scale = React.createElement("UIScale", {
-				Scale = responsive.scale,
-			}),
 			TopStatusBar = region(
-				point(380, 24),
-				size(1490, 72),
+				Vector2.new(0, 0),
+				Vector2.new(s(380), s(24)),
+				Vector2.new(math.max(1, screenWidth - s(430)), s(72)),
+				scale,
 				React.createElement(TopStatusBar, {
 					gold = data.Gold,
 					xp = data.XP,
 				})
 			),
+
 			ZoneProgress = region(
-				point(430, 116),
-				size(1080, 76),
-				React.createElement(ZoneProgressBar, { visible = true })
+				Vector2.new(0, 0),
+				Vector2.new(s(430), s(116)),
+				Vector2.new(math.max(1, screenWidth - s(840)), s(76)),
+				scale,
+				React.createElement(ZoneProgressBar, {
+					visible = true,
+				})
 			),
+
 			LeftColumn = region(
-				point(22, 158),
-				size(360, 680),
-				React.createElement(LeftPanelColumn, { quest = props.quest })
+				Vector2.new(0, 0),
+				Vector2.new(s(22), s(158)),
+				Vector2.new(s(360), s(680)),
+				scale,
+				React.createElement(LeftPanelColumn, {
+					quest = props.quest,
+				})
 			),
+
 			RightRail = region(
-				point(1590, 145),
-				size(285, 540),
-				React.createElement(ActionRail, { onBuild = factory.onToggleShop })
+				Vector2.new(1, 0),
+				Vector2.new(screenWidth - s(45), s(145)),
+				Vector2.new(s(285), s(540)),
+				scale,
+				React.createElement(ActionRail, {
+					onBuild = factory.onToggleShop,
+				})
 			),
+
 			BottomDock = region(
-				point(24, 885),
-				size(1830, 150),
+				Vector2.new(0, 1),
+				Vector2.new(s(24), screenHeight - s(45)),
+				Vector2.new(math.max(1, screenWidth - s(90)), s(150)),
+				scale,
 				React.createElement(BottomDock, {
 					inventory = data.Factory.Inventory,
 					onSelectItem = factory.onSelectItem,

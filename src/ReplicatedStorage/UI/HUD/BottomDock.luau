@@ -15,6 +15,9 @@ export type Props = {
 	onSelectItem: ((string) -> ())?,
 }
 
+local HOTBAR_LEFT = 376
+local HOTBAR_RIGHT_GAP = 604
+
 local function inviteFriends(): React.ReactNode
 	return React.createElement(Panel, {
 		variant = "Status",
@@ -52,8 +55,14 @@ local function inviteFriends(): React.ReactNode
 	})
 end
 
-local function frame(position: UDim2, size: UDim2, child: React.ReactNode): React.ReactNode
+local function frame(
+	position: UDim2,
+	size: UDim2,
+	child: React.ReactNode,
+	anchorPoint: Vector2?
+): React.ReactNode
 	return React.createElement("Frame", {
+		AnchorPoint = anchorPoint or Vector2.new(0, 0),
 		Position = position,
 		Size = size,
 		BackgroundTransparency = 1,
@@ -67,7 +76,12 @@ local function BottomDock(props: Props)
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 	}, {
-		Invite = frame(UDim2.fromOffset(0, 15), UDim2.fromOffset(300, 130), inviteFriends()),
+		Invite = frame(
+			UDim2.fromOffset(0, 15),
+			UDim2.fromOffset(300, 130),
+			inviteFriends()
+		),
+
 		Collapse = frame(
 			UDim2.fromOffset(316, 65),
 			UDim2.fromOffset(44, 60),
@@ -77,30 +91,35 @@ local function BottomDock(props: Props)
 				onActivated = nil,
 			})
 		),
+
 		Hotbar = frame(
-			UDim2.fromOffset(376, 30),
-			UDim2.fromOffset(850, 120),
+			UDim2.fromOffset(HOTBAR_LEFT, 30),
+			UDim2.new(1, -(HOTBAR_LEFT + HOTBAR_RIGHT_GAP), 0, 120),
 			React.createElement(FactoryHotbar, {
 				inventory = props.inventory,
 				onSelectItem = props.onSelectItem,
 			})
 		),
+
 		Backpack = frame(
-			UDim2.fromOffset(1246, 5),
+			UDim2.new(1, -464, 0, 5),
 			UDim2.fromOffset(120, 145),
 			React.createElement(ActionTile, {
 				icon = "Backpack",
 				label = "Backpack",
 				badge = tostring(HUD.Demo.BackpackBadge),
 				onActivated = nil,
-			})
+			}),
+			Vector2.new(1, 0)
 		),
+
 		Launch = frame(
-			UDim2.fromOffset(1386, -20),
+			UDim2.new(1, -4, 0, -20),
 			UDim2.fromOffset(440, 170),
 			React.createElement(LaunchButton, {
 				compact = false,
-			})
+			}),
+			Vector2.new(1, 0)
 		),
 	})
 end
